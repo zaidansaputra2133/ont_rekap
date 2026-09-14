@@ -16,10 +16,28 @@
     </div>
     <div>
         <span class="badge bg-white border text-secondary px-3 py-1.5 rounded-2 small fw-normal">
-            Total Keluar: <strong class="text-dark">{{ $totalKeluar ?? 98 }}</strong> Unit
+            Total Keluar: <strong class="text-dark">{{ $totalKeluar }}</strong> Unit
         </span>
     </div>
 </div>
+
+{{-- Flash Messages --}}
+@if(session('success'))
+<div class="alert alert-success alert-dismissible fade show border-0 rounded-2 mb-4 py-2 px-3" role="alert" style="font-size:0.85rem;">
+    <i class="bi bi-check-circle me-1"></i> {{ session('success') }}
+    <button type="button" class="btn-close btn-sm" data-bs-dismiss="alert"></button>
+</div>
+@endif
+
+@if($errors->any())
+<div class="alert alert-danger alert-dismissible fade show border-0 rounded-2 mb-4 py-2 px-3" role="alert" style="font-size:0.85rem;">
+    <i class="bi bi-exclamation-circle me-1"></i>
+    @foreach($errors->all() as $error)
+        {{ $error }}<br>
+    @endforeach
+    <button type="button" class="btn-close btn-sm" data-bs-dismiss="alert"></button>
+</div>
+@endif
 
 <!-- Input Form & Real Handover Protocol -->
 <div class="row g-4 mb-4">
@@ -30,22 +48,45 @@
                 <h6 class="fw-bold mb-0 text-dark">Form Serah Terima Unit</h6>
             </div>
             <div class="card-body p-3.5">
-                <form action="{{ url('/ont-keluar') }}" method="POST" id="formOntKeluar">
+                <form action="{{ route('ont-keluar.store') }}" method="POST" id="formOntKeluar">
                     @csrf
                     <div class="row g-3">
                         <div class="col-12">
                             <label for="nama_teknisi" class="form-label">Nama Teknisi <span class="text-muted small">*</span></label>
-                            <input type="text" class="form-control" id="nama_teknisi" name="nama_teknisi" placeholder="Nama lengkap personil teknisi" required>
+                            <input type="text"
+                                class="form-control @error('nama_teknisi') is-invalid @enderror"
+                                id="nama_teknisi" name="nama_teknisi"
+                                placeholder="Nama lengkap personil teknisi"
+                                value="{{ old('nama_teknisi') }}"
+                                required>
+                            @error('nama_teknisi')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
                         </div>
 
                         <div class="col-md-6">
                             <label for="tanggal_keluar" class="form-label">Tanggal Penyerahan <span class="text-muted small">*</span></label>
-                            <input type="date" class="form-control" id="tanggal_keluar" name="tanggal_keluar" value="{{ date('Y-m-d') }}" required>
+                            <input type="date"
+                                class="form-control @error('tanggal_keluar') is-invalid @enderror"
+                                id="tanggal_keluar" name="tanggal_keluar"
+                                value="{{ old('tanggal_keluar', date('Y-m-d')) }}"
+                                required>
+                            @error('tanggal_keluar')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
                         </div>
 
                         <div class="col-md-6">
                             <label for="serial_number" class="form-label">Serial Number (SN) <span class="text-muted small">*</span></label>
-                            <input type="text" class="form-control font-monospace" id="serial_number" name="serial_number" placeholder="Contoh: ZTEGD4CCA770" required>
+                            <input type="text"
+                                class="form-control font-monospace @error('serial_number') is-invalid @enderror"
+                                id="serial_number" name="serial_number"
+                                placeholder="Contoh: ZTEGD4CCA770"
+                                value="{{ old('serial_number') }}"
+                                required>
+                            @error('serial_number')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
                         </div>
 
                         <div class="col-12">
@@ -54,8 +95,8 @@
                             </div>
                         </div>
 
-                        <div class="col-12 mt-3">
-                            <button type="button" class="btn btn-custom-primary w-100 py-2 d-flex align-items-center justify-content-center gap-2">
+                        <div class="col-12 mt-1">
+                            <button type="submit" class="btn btn-custom-primary w-100 py-2 d-flex align-items-center justify-content-center gap-2">
                                 <i class="bi bi-check2"></i> Catat Penyerahan Barang
                             </button>
                         </div>
@@ -96,7 +137,7 @@
 
                 <div class="pt-3 mt-3 border-top d-flex justify-content-between align-items-center text-muted" style="font-size: 0.78rem;">
                     <span>Periksa data fisik gudang?</span>
-                    <a href="{{ url('/ont-masuk') }}" class="fw-medium text-decoration-none" style="color: var(--theme-red);">Buka ONT Masuk &rarr;</a>
+                    <a href="{{ route('ont-masuk.index') }}" class="fw-medium text-decoration-none" style="color: var(--theme-red);">Buka ONT Masuk &rarr;</a>
                 </div>
             </div>
         </div>
@@ -111,17 +152,17 @@
                 <h6 class="fw-bold mb-0 text-dark">Daftar Transaksi Keluar</h6>
             </div>
             <div class="col-md-7">
-                <form action="{{ url('/ont-keluar') }}" method="GET" class="d-flex gap-2 justify-content-md-end">
+                <form action="{{ route('ont-keluar.index') }}" method="GET" class="d-flex gap-2 justify-content-md-end">
                     <div class="input-group input-group-sm" style="max-width: 240px;">
                         <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-search"></i></span>
-                        <input type="text" name="search" class="form-control border-start-0" placeholder="Cari SN atau teknisi..." value="{{ request('search') }}">
+                        <input type="text" name="search" class="form-control border-start-0" placeholder="Cari SN atau teknisi..." value="{{ $search ?? '' }}">
                     </div>
                     <select name="status" class="form-select form-select-sm" style="max-width: 130px;">
                         <option value="">Semua Kondisi</option>
-                        <option value="normal">Normal</option>
-                        <option value="rusak">Rusak</option>
+                        <option value="normal" {{ ($status ?? '') == 'normal' ? 'selected' : '' }}>Normal</option>
+                        <option value="rusak" {{ ($status ?? '') == 'rusak' ? 'selected' : '' }}>Rusak</option>
                     </select>
-                    <button type="button" class="btn btn-outline-secondary btn-sm px-2.5">Filter</button>
+                    <button type="submit" class="btn btn-outline-secondary btn-sm px-2.5">Filter</button>
                 </form>
             </div>
         </div>
@@ -137,100 +178,71 @@
                     <th>Tgl Keluar</th>
                     <th>Kondisi</th>
                     <th>Catatan Kerusakan</th>
-                    <th class="text-center" style="width: 110px;">Aksi</th>
+                    <th class="text-center" style="width: 120px;">Aksi</th>
                 </tr>
             </thead>
             <tbody>
-                @php
-                    $mockKeluar = [
-                        [
-                            'id' => 1,
-                            'sn' => 'ZTEGD4CCA770',
-                            'teknisi' => 'Rian Hidayat',
-                            'tgl' => '2026-09-13',
-                            'keterangan' => 'Rusak',
-                            'catatan' => 'Port PON LOS merah terus, adaptor normal'
-                        ],
-                        [
-                            'id' => 2,
-                            'sn' => 'FHDR7300A114',
-                            'teknisi' => 'Ahmad Fajar',
-                            'tgl' => '2026-09-13',
-                            'keterangan' => null,
-                            'catatan' => null
-                        ],
-                        [
-                            'id' => 3,
-                            'sn' => 'HWTC8820B192',
-                            'teknisi' => 'Rian Hidayat',
-                            'tgl' => '2026-09-14',
-                            'keterangan' => null,
-                            'catatan' => null
-                        ],
-                        [
-                            'id' => 4,
-                            'sn' => 'ZTEGC9912A04',
-                            'teknisi' => 'Bagus Prakoso',
-                            'tgl' => '2026-09-14',
-                            'keterangan' => 'Rusak',
-                            'catatan' => 'Mati total setelah petir di lokasi pelanggan'
-                        ],
-                        [
-                            'id' => 5,
-                            'sn' => 'HWTC4100X881',
-                            'teknisi' => 'Dedi Kurniawan',
-                            'tgl' => '2026-09-14',
-                            'keterangan' => null,
-                            'catatan' => null
-                        ]
-                    ];
-                @endphp
-
-                @forelse($keluarItems ?? $mockKeluar as $index => $row)
+                @forelse($items as $row)
                 <tr>
-                    <td class="text-center text-muted small">{{ $loop->iteration }}</td>
+                    <td class="text-center text-muted small">{{ $items->firstItem() + $loop->index }}</td>
                     <td>
                         <div class="d-flex align-items-center gap-1.5">
-                            <span class="font-monospace fw-medium text-dark">{{ $row['sn'] }}</span>
-                            <button class="btn btn-sm btn-link text-muted p-0 ms-1" title="Salin SN" onclick="navigator.clipboard.writeText('{{ $row['sn'] }}')">
+                            <span class="font-monospace fw-medium text-dark">{{ $row->serial_number }}</span>
+                            <button class="btn btn-sm btn-link text-muted p-0 ms-1" title="Salin SN"
+                                onclick="navigator.clipboard.writeText('{{ $row->serial_number }}'); this.innerHTML='<i class=\'bi bi-clipboard-check\' style=\'font-size:0.75rem;\'></i>'">
                                 <i class="bi bi-clipboard" style="font-size: 0.75rem;"></i>
                             </button>
                         </div>
                     </td>
                     <td>
-                        <span class="fw-medium text-dark small">{{ $row['teknisi'] }}</span>
+                        <span class="fw-medium text-dark small">{{ $row->nama_teknisi }}</span>
                     </td>
                     <td>
-                        <span class="text-dark small">{{ date('d M Y', strtotime($row['tgl'])) }}</span>
+                        <span class="text-dark small">{{ $row->tanggal_keluar->format('d M Y') }}</span>
                     </td>
                     <td>
-                        @if($row['keterangan'] === 'Rusak')
-                            <span class="badge badge-theme-red px-2 py-0.5 rounded-1 small">
-                                Rusak
-                            </span>
+                        @if($row->keterangan === 'Rusak')
+                            <span class="badge badge-theme-red px-2 py-0.5 rounded-1 small">Rusak</span>
                         @else
-                            <span class="badge badge-soft-success px-2 py-0.5 rounded-1 small">
-                                Normal
-                            </span>
+                            <span class="badge badge-soft-success px-2 py-0.5 rounded-1 small">Normal</span>
                         @endif
                     </td>
                     <td>
-                        @if(!empty($row['catatan']))
-                            <span class="text-muted small">"{{ $row['catatan'] }}"</span>
+                        @if($row->catatan)
+                            <span class="text-muted small">"{{ Str::limit($row->catatan, 50) }}"</span>
                         @else
                             <span class="text-muted small">-</span>
                         @endif
                     </td>
                     <td class="text-center">
-                        <button type="button" class="btn btn-sm btn-outline-theme py-1 px-2 rounded-2" style="font-size: 0.78rem;"
-                                onclick="openEditModal('{{ $row['id'] }}', '{{ $row['sn'] }}', '{{ $row['teknisi'] }}', '{{ $row['keterangan'] ?? '' }}', '{{ addslashes($row['catatan'] ?? '') }}')">
-                            Ubah Kondisi
-                        </button>
+                        <div class="d-flex gap-1 justify-content-center">
+                            <button type="button"
+                                class="btn btn-sm btn-outline-theme py-1 px-2 rounded-2"
+                                style="font-size: 0.78rem;"
+                                onclick="openEditModal(
+                                    '{{ $row->id }}',
+                                    '{{ $row->serial_number }}',
+                                    '{{ $row->nama_teknisi }}',
+                                    '{{ $row->keterangan ?? '' }}',
+                                    '{{ addslashes($row->catatan ?? '') }}'
+                                )">
+                                Ubah Kondisi
+                            </button>
+                            <form action="{{ route('ont-keluar.destroy', $row->id) }}" method="POST"
+                                onsubmit="return confirm('Hapus transaksi SN {{ $row->serial_number }}?')">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn btn-sm btn-link text-danger p-0 ms-1" title="Hapus">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </form>
+                        </div>
                     </td>
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="7" class="text-center py-4 text-muted small">
+                    <td colspan="7" class="text-center py-5 text-muted small">
+                        <i class="bi bi-inbox fs-4 d-block mb-2 text-muted opacity-50"></i>
                         Belum ada data penyerahan teknisi.
                     </td>
                 </tr>
@@ -241,19 +253,20 @@
 
     <!-- Pagination Footer -->
     <div class="card-footer bg-white border-top p-2.5 d-flex flex-column flex-sm-row justify-content-between align-items-center gap-2">
-        <span class="text-muted small" style="font-size: 0.78rem;">Menampilkan 1 - 5 dari 98 data</span>
+        <span class="text-muted small" style="font-size: 0.78rem;">
+            @if($items->total() > 0)
+                Menampilkan {{ $items->firstItem() }}–{{ $items->lastItem() }} dari {{ $items->total() }} data
+            @else
+                Tidak ada data ditemukan
+            @endif
+        </span>
         <nav aria-label="Page navigation">
-            <ul class="pagination pagination-sm mb-0">
-                <li class="page-item disabled"><a class="page-link" href="#">&laquo;</a></li>
-                <li class="page-item active"><a class="page-link" href="#" style="background-color: var(--theme-red); border-color: var(--theme-red);">1</a></li>
-                <li class="page-item"><a class="page-link" href="#">2</a></li>
-                <li class="page-item"><a class="page-link" href="#">&raquo;</a></li>
-            </ul>
+            {{ $items->links('pagination::bootstrap-5') }}
         </nav>
     </div>
 </div>
 
-<!-- Modal Update Status & Catatan Kerusakan Minimal -->
+<!-- Modal Update Status & Catatan Kerusakan -->
 <div class="modal fade" id="modalUpdateStatus" tabindex="-1" aria-labelledby="modalUpdateStatusLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-sm rounded-3">
@@ -263,7 +276,7 @@
                 </h6>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form action="{{ url('/ont-keluar/update-status') }}" method="POST" id="formUpdateStatus">
+            <form action="{{ route('ont-keluar.update-status') }}" method="POST" id="formUpdateStatus">
                 @csrf
                 <input type="hidden" id="modal_id" name="id">
 
@@ -300,7 +313,7 @@
 
                 <div class="modal-footer bg-white border-top px-3 py-2">
                     <button type="button" class="btn btn-outline-secondary btn-sm rounded-2" data-bs-dismiss="modal">Batal</button>
-                    <button type="button" class="btn btn-custom-primary btn-sm rounded-2" data-bs-dismiss="modal">
+                    <button type="submit" class="btn btn-custom-primary btn-sm rounded-2">
                         Simpan Perubahan
                     </button>
                 </div>
@@ -334,5 +347,13 @@
             wrapper.classList.add('opacity-50');
         }
     }
+
+    // Auto-dismiss flash alerts setelah 4 detik
+    setTimeout(() => {
+        document.querySelectorAll('.alert').forEach(el => {
+            const bsAlert = bootstrap.Alert.getOrCreateInstance(el);
+            bsAlert.close();
+        });
+    }, 4000);
 </script>
 @endpush

@@ -1,37 +1,35 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\OntMasukController;
+use App\Http\Controllers\OntKeluarController;
+use App\Http\Controllers\ReportingWoController;
 
 /*
 |--------------------------------------------------------------------------
-| SIM-ONT Web Routes (Front-End Prototype Phase)
+| SIM-ONT Web Routes
 |--------------------------------------------------------------------------
 */
 
 // 1. Dashboard Utama
-Route::get('/', function () {
-    $totalMasuk = 142;
-    $totalKeluar = 98;
-    $totalRusak = 6;
+Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
-    $rekapTeknisi = [
-        ['nama' => 'Rian Hidayat', 'total_diambil' => 32, 'normal' => 30, 'rusak' => 2],
-        ['nama' => 'Ahmad Fajar', 'total_diambil' => 28, 'normal' => 27, 'rusak' => 1],
-        ['nama' => 'Bagus Prakoso', 'total_diambil' => 22, 'normal' => 20, 'rusak' => 2],
-        ['nama' => 'Dedi Kurniawan', 'total_diambil' => 16, 'normal' => 15, 'rusak' => 1],
-    ];
+// 2. Modul ONT Masuk (Gudang) - Full Backend
+Route::get('/ont-masuk', [OntMasukController::class, 'index'])->name('ont-masuk.index');
+Route::get('/ont-masuk/template', [OntMasukController::class, 'downloadTemplate'])->name('ont-masuk.template');
+Route::post('/ont-masuk', [OntMasukController::class, 'store'])->name('ont-masuk.store');
+Route::post('/ont-masuk/import', [OntMasukController::class, 'import'])->name('ont-masuk.import');
+Route::delete('/ont-masuk/{ontMasuk}', [OntMasukController::class, 'destroy'])->name('ont-masuk.destroy');
 
-    return view('dashboard', compact('totalMasuk', 'totalKeluar', 'totalRusak', 'rekapTeknisi'));
-})->name('dashboard');
+// 3. Modul ONT Keluar (Penyerahan Teknisi) - Full Backend
+Route::get('/ont-keluar', [OntKeluarController::class, 'index'])->name('ont-keluar.index');
+Route::post('/ont-keluar', [OntKeluarController::class, 'store'])->name('ont-keluar.store');
+Route::post('/ont-keluar/update-status', [OntKeluarController::class, 'updateStatus'])->name('ont-keluar.update-status');
+Route::delete('/ont-keluar/{ontKeluar}', [OntKeluarController::class, 'destroy'])->name('ont-keluar.destroy');
 
-// 2. Modul ONT Masuk (Gudang)
-Route::get('/ont-masuk', function () {
-    $totalCount = 142;
-    return view('ont-masuk.index', compact('totalCount'));
-})->name('ont-masuk.index');
+// 4. Modul Reporting Work Order (Laporan Lapangan)
+Route::get('/reporting-wo', [ReportingWoController::class, 'index'])->name('reporting-wo.index');
+Route::get('/reporting-wo/template', [ReportingWoController::class, 'downloadTemplate'])->name('reporting-wo.template');
+Route::post('/reporting-wo/import', [ReportingWoController::class, 'import'])->name('reporting-wo.import');
+Route::delete('/reporting-wo/{reportingWo}', [ReportingWoController::class, 'destroy'])->name('reporting-wo.destroy');
 
-// 3. Modul ONT Keluar (Penyerahan Teknisi)
-Route::get('/ont-keluar', function () {
-    $totalKeluar = 98;
-    return view('ont-keluar.index', compact('totalKeluar'));
-})->name('ont-keluar.index');

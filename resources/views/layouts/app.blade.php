@@ -335,6 +335,11 @@
                             <i class="bi bi-box-arrow-up-right"></i> ONT Keluar
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ request()->is('reporting-wo*') ? 'active' : '' }}" href="{{ url('/reporting-wo') }}">
+                            <i class="bi bi-file-earmark-text"></i> Reporting WO
+                        </a>
+                    </li>
                 </ul>
             </div>
         </div>
@@ -347,6 +352,14 @@
                 <div class="alert alert-success alert-dismissible fade show d-flex align-items-center gap-2 rounded-2 mb-4 py-2 px-3 border-0 bg-success-subtle text-success-emphasis" role="alert">
                     <i class="bi bi-check-circle-fill"></i>
                     <div>{{ session('success') }}</div>
+                    <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            @endif
+
+            @if(session('info'))
+                <div class="alert alert-info alert-dismissible fade show d-flex align-items-center gap-2 rounded-2 mb-4 py-2 px-3 border-0 bg-info-subtle text-info-emphasis" role="alert">
+                    <i class="bi bi-info-circle-fill"></i>
+                    <div>{{ session('info') }}</div>
                     <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
             @endif

@@ -25,7 +25,21 @@ class OntKeluarController extends Controller
 
         $totalKeluar = OntKeluar::count();
 
-        return view('ont-keluar.index', compact('items', 'totalKeluar', 'search', 'status'));
+        // Ambil unit ONT di gudang yang BELUM PERNAH keluar (stok yang tersedia untuk diserahkan)
+        $availableOnts = OntMasuk::whereNotIn('serial_number', function ($query) {
+                $query->select('serial_number')->from('ont_keluars');
+            })
+            ->orderBy('created_at', 'desc')
+            ->get(['serial_number', 'brand', 'tanggal_masuk']);
+
+        // Ambil daftar nama teknisi yang sudah ada untuk saran pengetikan cepat
+        $daftarTeknisi = OntKeluar::select('nama_teknisi')
+            ->distinct()
+            ->whereNotNull('nama_teknisi')
+            ->orderBy('nama_teknisi')
+            ->pluck('nama_teknisi');
+
+        return view('ont-keluar.index', compact('items', 'totalKeluar', 'search', 'status', 'availableOnts', 'daftarTeknisi'));
     }
 
     /**

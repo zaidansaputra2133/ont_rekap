@@ -341,6 +341,31 @@
                         </a>
                     </li>
                 </ul>
+
+                {{-- User Info & Logout --}}
+                @auth
+                <div class="d-flex align-items-center gap-2 ms-lg-2 mt-2 mt-lg-0">
+                    <div class="d-flex align-items-center gap-2 px-3 py-1 rounded-3" style="background: #fafbfc; border: 1px solid #f0f0f2;">
+                        <div style="width:28px;height:28px;border-radius:50%;background:var(--theme-red-light);border:1px solid var(--theme-red-border);display:flex;align-items:center;justify-content:center;">
+                            <i class="bi bi-person-fill" style="font-size:0.85rem;color:var(--theme-red);"></i>
+                        </div>
+                        <span style="font-size:0.82rem;font-weight:600;color:#334155;">{{ Auth::user()->name }}</span>
+                    </div>
+                    <form method="POST" action="{{ route('logout') }}" class="d-inline m-0">
+                        @csrf
+                        <button
+                            type="submit"
+                            id="btn-logout"
+                            class="btn d-flex align-items-center gap-1"
+                            style="font-size:0.82rem;font-weight:500;color:#64748b;border:1px solid #e2e8f0;border-radius:7px;padding:0.35rem 0.75rem;background:#fff;transition:all 0.15s ease;"
+                            onmouseover="this.style.color='#b91c1c';this.style.borderColor='#fca5a5';this.style.background='#fef2f2';"
+                            onmouseout="this.style.color='#64748b';this.style.borderColor='#e2e8f0';this.style.background='#fff';"
+                        >
+                            <i class="bi bi-box-arrow-right"></i> Keluar
+                        </button>
+                    </form>
+                </div>
+                @endauth
             </div>
         </div>
     </nav>

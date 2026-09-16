@@ -63,11 +63,12 @@
                 <div class="tab-content" id="ontMasukTabContent">
                     <!-- Tab 1: Input Manual Single Item -->
                     <div class="tab-pane fade show active" id="manual-pane" role="tabpanel">
-                        <form action="{{ route('ont-masuk.store') }}" method="POST" id="formManualInput">
+                        <form action="{{ route('ont-masuk.store') }}" method="POST" id="formManualInput" autocomplete="off">
                             @csrf
                             <div class="mb-3">
                                 <label for="serial_number" class="form-label">Serial Number (SN) <span class="text-muted small">*</span></label>
                                 <input type="text"
+                                    autocomplete="off"
                                     class="form-control font-monospace @error('serial_number') is-invalid @enderror"
                                     id="serial_number" name="serial_number"
                                     placeholder="Contoh: ZTEGC3FA7280"
@@ -80,7 +81,12 @@
                             </div>
 
                             <div class="mb-3">
-                                <label for="brand" class="form-label">Merek / Vendor</label>
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <label for="brand" class="form-label mb-0">Merek / Vendor</label>
+                                    <span id="brandAutoBadge" class="badge bg-success-subtle text-success border border-success-subtle px-1.5 py-0.5 rounded-1 d-none" style="font-size: 0.72rem;">
+                                        <i class="bi bi-magic me-1"></i>Otomatis: <span id="brandAutoName"></span>
+                                    </span>
+                                </div>
                                 <select class="form-select @error('brand') is-invalid @enderror" id="brand" name="brand">
                                     <option value="" {{ old('brand') == '' ? 'selected' : '' }}>-- Pilih Merek (Opsional) --</option>
                                     <option value="ZTE" {{ old('brand') == 'ZTE' ? 'selected' : '' }}>ZTE</option>
@@ -321,5 +327,85 @@
             bsAlert.close();
         });
     }, 4000);
+
+    // ==========================================
+    // LOGIKA SCANNER BARCODE & AUTO-DETECT BRAND
+    // ==========================================
+    document.addEventListener('DOMContentLoaded', function () {
+        const snInput = document.getElementById('serial_number');
+        const brandSelect = document.getElementById('brand');
+        const brandAutoBadge = document.getElementById('brandAutoBadge');
+        const brandAutoName = document.getElementById('brandAutoName');
+        const formManual = document.getElementById('formManualInput');
+        const manualTab = document.getElementById('manual-tab');
+
+        // Fungsi identifikasi merek dari prefix Serial Number
+        function detectBrandFromSN(sn) {
+            if (!sn) return null;
+            const s = sn.trim().toUpperCase();
+            if (s.startsWith('ZTE')) return 'ZTE';
+            if (s.startsWith('FHTT')) return 'Fiberhome';
+            if (s.startsWith('ALCL')) return 'Nokia';
+            if (s.startsWith('48575443') || s.startsWith('HWTC')) return 'Huawei';
+            return null;
+        }
+
+        function applyBrandDetection() {
+            if (!snInput || !brandSelect) return;
+            const detected = detectBrandFromSN(snInput.value);
+            if (detected) {
+                brandSelect.value = detected;
+                if (brandAutoName && brandAutoBadge) {
+                    brandAutoName.textContent = detected;
+                    brandAutoBadge.classList.remove('d-none');
+                }
+            } else {
+                if (brandAutoBadge) {
+                    brandAutoBadge.classList.add('d-none');
+                }
+            }
+        }
+
+        if (snInput) {
+            // Deteksi real-time saat scanner mengetik teks barcode atau user paste/input
+            snInput.addEventListener('input', applyBrandDetection);
+            snInput.addEventListener('change', applyBrandDetection);
+
+            // Jika user scan dan menekan Enter, pastikan deteksi dieksekusi sebelum submit
+            snInput.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') {
+                    applyBrandDetection();
+                    // Biarkan submit form default berjalan otomatis
+                }
+            });
+
+            // Fokus otomatis ke input Serial Number agar langsung siap scan tanpa klik
+            snInput.focus();
+        }
+
+        if (manualTab && snInput) {
+            manualTab.addEventListener('shown.bs.tab', function () {
+                snInput.focus();
+            });
+        }
+
+        if (formManual) {
+            formManual.addEventListener('submit', function () {
+                // Jalankan deteksi sekali lagi sebelum payload terkirim
+                applyBrandDetection();
+
+                if (snInput) {
+                    snInput.value = snInput.value.trim().toUpperCase();
+                }
+
+                // Tampilkan efek loading pada tombol simpan
+                const submitBtn = formManual.querySelector('button[type="submit"]');
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Menyimpan Unit...';
+                }
+            });
+        }
+    });
 </script>
 @endpush

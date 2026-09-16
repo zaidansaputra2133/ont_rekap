@@ -44,11 +44,40 @@ class OntMasuk extends Model
 
     /**
      * Cek apakah ONT ini sudah pernah keluar (ada di ont_keluars)
-     * Sementara return false sampai tabel ont_keluars dibuat
      */
     public function sudahKeluar(): bool
     {
-        // Akan diimplementasikan saat backend ONT Keluar dibuat
-        return false;
+        return \App\Models\OntKeluar::where('serial_number', $this->serial_number)->exists();
+    }
+
+    /**
+     * Deteksi merek ONT otomatis berdasarkan prefix Serial Number standar Telkom Akses.
+     * - ZTE: diawali 'ZTE'
+     * - Fiberhome: diawali 'FHTT'
+     * - Nokia: diawali 'ALCL'
+     * - Huawei: diawali '48575443' (hex GPON SN) atau 'HWTC'
+     */
+    public static function detectBrand(?string $serialNumber): ?string
+    {
+        if (!$serialNumber) {
+            return null;
+        }
+
+        $sn = strtoupper(trim($serialNumber));
+
+        if (str_starts_with($sn, 'ZTE')) {
+            return 'ZTE';
+        }
+        if (str_starts_with($sn, 'FHTT')) {
+            return 'Fiberhome';
+        }
+        if (str_starts_with($sn, 'ALCL')) {
+            return 'Nokia';
+        }
+        if (str_starts_with($sn, '48575443') || str_starts_with($sn, 'HWTC')) {
+            return 'Huawei';
+        }
+
+        return null;
     }
 }

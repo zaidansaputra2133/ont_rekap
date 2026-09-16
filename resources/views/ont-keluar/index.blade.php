@@ -48,17 +48,18 @@
                 <h6 class="fw-bold mb-0 text-dark">Form Serah Terima Unit</h6>
             </div>
             <div class="card-body p-3.5">
-                <form action="{{ route('ont-keluar.store') }}" method="POST" id="formOntKeluar">
+                <form action="{{ route('ont-keluar.store') }}" method="POST" id="formOntKeluar" autocomplete="off">
                     @csrf
                     <div class="row g-3">
                         <div class="col-12">
                             <label for="nama_teknisi" class="form-label">Nama Teknisi <span class="text-muted small">*</span></label>
                             <input type="text"
+                                autocomplete="off"
                                 class="form-control @error('nama_teknisi') is-invalid @enderror"
                                 id="nama_teknisi" name="nama_teknisi"
-                                placeholder="Nama lengkap personil teknisi"
+                                placeholder="Nama personil teknisi"
                                 value="{{ old('nama_teknisi') }}"
-                                required>
+                                required autofocus>
                             @error('nama_teknisi')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
@@ -77,13 +78,25 @@
                         </div>
 
                         <div class="col-md-6">
-                            <label for="serial_number" class="form-label">Serial Number (SN) <span class="text-muted small">*</span></label>
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label for="serial_number" class="form-label mb-0">Serial Number (SN) <span class="text-muted small">*</span></label>
+                                <span class="badge badge-soft-secondary text-secondary" style="font-size: 0.72rem;">
+                                    Stok Tersedia: <strong class="text-dark">{{ $availableOnts->count() }}</strong> Unit
+                                </span>
+                            </div>
                             <input type="text"
+                                list="available_sn_list"
+                                autocomplete="off"
                                 class="form-control font-monospace @error('serial_number') is-invalid @enderror"
                                 id="serial_number" name="serial_number"
-                                placeholder="Contoh: ZTEGD4CCA770"
+                                placeholder="Pilih stok atau scan barcode..."
                                 value="{{ old('serial_number') }}"
                                 required>
+                            <datalist id="available_sn_list">
+                                @foreach($availableOnts as $ont)
+                                    <option value="{{ $ont->serial_number }}">{{ $ont->brand ? $ont->brand : 'ONT' }} (Masuk: {{ $ont->tanggal_masuk ? $ont->tanggal_masuk->format('d/m/Y') : '-' }})</option>
+                                @endforeach
+                            </datalist>
                             @error('serial_number')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
@@ -91,7 +104,7 @@
 
                         <div class="col-12">
                             <div class="text-muted" style="font-size: 0.74rem;">
-                                *Hanya Serial Number yang terdaftar di stok gudang yang dapat diproses.
+                                *Hanya menampilkan unit yang masih ada di stok gudang (unit yang sudah diserahkan otomatis hilang dari daftar). Mendukung tembak barcode scanner USB.
                             </div>
                         </div>
 

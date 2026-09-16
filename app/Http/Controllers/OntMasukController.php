@@ -44,14 +44,17 @@ class OntMasukController extends Controller
             'tanggal_masuk.required' => 'Tanggal penerimaan wajib diisi.',
         ]);
 
+        $sn = strtoupper(trim($request->serial_number));
+        $brand = $request->brand ?: OntMasuk::detectBrand($sn);
+
         OntMasuk::create([
-            'serial_number' => strtoupper(trim($request->serial_number)),
-            'brand'         => $request->brand ?: null,
+            'serial_number' => $sn,
+            'brand'         => $brand ?: null,
             'tanggal_masuk' => $request->tanggal_masuk,
         ]);
 
         return redirect()->route('ont-masuk.index')
-            ->with('success', 'Unit ONT berhasil ditambahkan ke inventaris.');
+            ->with('success', "Unit ONT {$sn}" . ($brand ? " ({$brand})" : '') . " berhasil ditambahkan ke inventaris.");
     }
 
     /**

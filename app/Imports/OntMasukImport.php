@@ -49,9 +49,11 @@ class OntMasukImport implements ToModel, WithHeadingRow, SkipsOnError
 
         $this->importedCount++;
 
+        $brand = !empty($row['brand']) ? trim($row['brand']) : OntMasuk::detectBrand($sn);
+
         return new OntMasuk([
             'serial_number' => $sn,
-            'brand'         => !empty($row['brand']) ? trim($row['brand']) : null,
+            'brand'         => $brand ?: null,
             'tanggal_masuk' => $tanggal,
         ]);
     }

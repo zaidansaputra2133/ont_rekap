@@ -1,33 +1,39 @@
-Berikut adalah dokumen **`PRD.md`** utuh terbaru yang sudah mencakup seluruh penyesuaian: arsitektur Laravel tanpa JS build tools, database MySQL Laragon (`ont_rekap`), modul *ONT Masuk*, *ONT Keluar*, *Reporting Work Order*, hingga logika pencocokan rekapitulasi **INSTALLED** dan **NOT INSTALLED** per teknisi.
-
----
-
-```markdown
 # Product Requirement Document (PRD)
 ## Sistem Rekapitulasi ONT & Reporting Work Order (SIM-ONT)
+
+**Versi:** 1.1 — *Diperbarui sesuai kondisi project aktual (September 2026)*
 
 ---
 
 ### 1. Ringkasan Eksekutif & Tujuan Sistem
 
-**SIM-ONT** adalah aplikasi web internal berbasis **Laravel** yang berfungsi untuk mencatat, mengelola, dan memantau alur keluar-masuk perangkat ONT (modem) serta melakukan rekapitulasi otomatis laporan status *Work Order* (WO) teknisi di lapangan.
+**SIM-ONT** adalah aplikasi web internal berbasis **Laravel 12** yang berfungsi untuk mencatat, mengelola, dan memantau alur keluar-masuk perangkat ONT (modem fiber optik), serta melakukan rekapitulasi otomatis laporan status *Work Order* (WO) teknisi Telkom Akses di lapangan.
 
-* **Masalah yang Diselesaikan:** Menghilangkan pencatatan rekap manual yang rentan *human error*, mencegah duplikasi *Serial Number* (SN), mempermudah pendataan unit ONT yang mengalami kerusakan, serta memverifikasi kesesuaian ONT yang dibawa teknisi dengan status penyelesaian WO secara *real-time*.
-* **Prinsip Tampilan & Arsitektur:** **Sederhana, Cepat, dan Bebas Build-Tools.** Aplikasi menggunakan Laravel Blade dengan antarmuka Bootstrap 5 via CDN (100% tanpa Node.js, NPM, Vite, atau framework JavaScript tambahan).
+**Masalah yang Diselesaikan:**
+- Menghilangkan pencatatan manual yang rentan *human error*
+- Mencegah duplikasi *Serial Number* (SN)
+- Mempercepat proses input gudang via barcode scanner USB dengan identifikasi merek instan
+- Mempermudah pendataan unit ONT rusak/retur
+- Memverifikasi kesesuaian unit yang dibawa teknisi dengan laporan penyelesaian WO secara *real-time*
+
+**Prinsip Arsitektur:** Sederhana, Cepat, dan Bebas Build-Tools. Laravel Blade + Bootstrap 5.3 via CDN (100% tanpa Node.js/NPM/Vite).
 
 ---
 
-### 2. Arsitektur Teknis & Environment (Tech Stack)
+### 2. Arsitektur Teknis & Tech Stack
 
-| Komponen | Teknologi / Spesifikasi | Keterangan |
+| Komponen | Teknologi | Keterangan |
 | :--- | :--- | :--- |
-| **Local Environment** | **Laragon** | Server lokal (Apache/Nginx + MySQL + PHP) |
-| **Backend Framework** | **Laravel (PHP)** | Arsitektur MVC & Form Handling standar |
-| **Database Engine** | **MySQL** | Running di Laragon (Database Name: **`ont_rekap`**) |
-| **Frontend UI** | **Bootstrap 5 (via CDN)** | Dimuat via `<link rel="stylesheet">` pada header HTML |
-| **Excel Processor** | **`maatwebsite/excel`** | Di-install via Composer (PHP) untuk membaca file `.xlsx`/`.csv` |
+| **Framework** | Laravel 12 (PHP 8.2+) | MVC, Form Request, Blade |
+| **Database** | MySQL | DB: `ont_rekap` |
+| **Frontend** | Bootstrap 5.3 + Bootstrap Icons (CDN) | Responsif, tanpa build tools |
+| **Font** | Plus Jakarta Sans (Google Fonts) | weight 400/500/600/700/800 |
+| **Excel** | `maatwebsite/excel` (PhpSpreadsheet) | Import `.xlsx`/`.csv`, download template |
+| **Auth** | Laravel Built-in Auth (`Auth` facade) | Session-based, middleware `auth`/`guest` |
+| **Barcode** | USB HID Keyboard Emulation | Plug & play, kompatibel semua scanner |
+| **Dev Server** | `php artisan serve` | Port 8000 |
 
-#### **Konfigurasi Environment (`.env`)**
+#### Konfigurasi `.env`
 ```ini
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
@@ -35,147 +41,249 @@ DB_PORT=3306
 DB_DATABASE=ont_rekap
 DB_USERNAME=root
 DB_PASSWORD=
-
 ```
 
 ---
 
-### 3. Skema Basis Data (Database Schema - MySQL)
+### 3. Skema Basis Data (MySQL)
 
-#### **Tabel 1: `ont_masuks` (Data Master ONT Gudang)**
+#### Tabel 1: `ont_masuks` — Data Master ONT Gudang
 
-*Menyimpan seluruh riwayat Serial Number ONT yang pernah diterima di gudang.*
+| Field | Type | Attributes | Deskripsi |
+| :--- | :--- | :--- | :--- |
+| `id` | BIGINT | PK, Auto Increment | ID Unik |
+| `serial_number` | VARCHAR(100) | Unique, Indexed, Not Null | SN ONT (misal: `ZTEGC3FA7280`) |
+| `brand` | VARCHAR(50) | Nullable | ZTE / Fiberhome / Nokia / Huawei |
+| `tanggal_masuk` | DATE | Not Null | Tanggal penerimaan gudang |
+| `created_at` | TIMESTAMP | Nullable | — |
+| `updated_at` | TIMESTAMP | Nullable | — |
 
-| Field Name | Type Data MySQL | Attributes | Deskripsi / Aturan |
-| --- | --- | --- | --- |
-| `id` | `BIGINT` | Primary Key, Auto Increment | ID Unik Transaksi |
-| `serial_number` | `VARCHAR(100)` | Unique, Indexed, Not Null | Serial Number ONT (misal: `ZTEGD4CCA770`) |
-| `brand` | `VARCHAR(50)` | Nullable | Merek/Vendor (ZTE, Huawei, Fiberhome) |
-| `tanggal_masuk` | `DATE` | Not Null | Tanggal penerimaan barang di gudang |
-| `created_at` | `TIMESTAMP` | Nullable | Default Laravel |
-| `updated_at` | `TIMESTAMP` | Nullable | Default Laravel |
+#### Tabel 2: `ont_keluars` — Data Penyerahan ke Teknisi
 
-#### **Tabel 2: `ont_keluars` (Data Transaksi Pengeluaran Teknisi)**
+| Field | Type | Attributes | Deskripsi |
+| :--- | :--- | :--- | :--- |
+| `id` | BIGINT | PK, Auto Increment | ID Unik |
+| `serial_number` | VARCHAR(100) | FK → `ont_masuks.serial_number`, Not Null | SN unit yang diserahkan |
+| `nama_teknisi` | VARCHAR(150) | Not Null | Nama teknisi penerima |
+| `tanggal_keluar` | DATE | Not Null | Tanggal penyerahan |
+| `keterangan` | VARCHAR(50) | Nullable | Diisi `"Rusak"` jika cacat, null jika normal |
+| `catatan` | TEXT | Nullable | Rincian kerusakan / alasan retur |
+| `created_at` | TIMESTAMP | Nullable | — |
+| `updated_at` | TIMESTAMP | Nullable | — |
 
-*Menyimpan riwayat penyerahan ONT ke teknisi beserta status kondisinya.*
+#### Tabel 3: `reporting_wos` — Data Laporan Work Order
 
-| Field Name | Type Data MySQL | Attributes | Deskripsi / Aturan |
-| --- | --- | --- | --- |
-| `id` | `BIGINT` | Primary Key, Auto Increment | ID Unik Transaksi |
-| `serial_number` | `VARCHAR(100)` | Foreign Key, Not Null | Terhubung ke `ont_masuks(serial_number)` |
-| `nama_teknisi` | `VARCHAR(150)` | Not Null | Nama teknisi penerima |
-| `tanggal_keluar` | `DATE` | Not Null | Tanggal penyerahan barang |
-| `keterangan` | `VARCHAR(50)` | **Nullable** | Hanya diisi string `"Rusak"` (kosong jika normal) |
-| `catatan` | `TEXT` | Nullable | Detail kerusakan atau alasan retur |
-| `created_at` | `TIMESTAMP` | Nullable | Default Laravel |
-| `updated_at` | `TIMESTAMP` | Nullable | Default Laravel |
+| Field | Type | Attributes | Deskripsi |
+| :--- | :--- | :--- | :--- |
+| `id` | BIGINT | PK, Auto Increment | ID Unik |
+| `no_order` | VARCHAR(100) | Indexed, Not Null | Nomor WO (misal: `WO20264384690`) |
+| `cid` | VARCHAR(50) | Nullable | Circuit ID / ID Pelanggan |
+| `serial_number` | VARCHAR(100) | FK → `ont_masuks.serial_number`, Not Null | SN unit yang dipasang |
+| `nama_teknisi` | VARCHAR(150) | Not Null | Nama teknisi pada laporan WO |
+| `nik_teknisi` | VARCHAR(50) | Nullable | NIK Teknisi |
+| `status_wo` | VARCHAR(50) | Not Null | misal: `Work Order Selesai` |
+| `tanggal_sa` | DATE | Nullable | Tanggal penyelesaian / SA |
+| `vendor` | VARCHAR(100) | Nullable | Nama vendor/mitra |
+| `sektor` | VARCHAR(50) | Nullable | Kode sektor area |
+| `cek_match` | VARCHAR(50) | Nullable | `SESUAI` / `Beda` (auto-rekonsiliasi) |
+| `created_at` | TIMESTAMP | Nullable | — |
+| `updated_at` | TIMESTAMP | Nullable | — |
 
-#### **Tabel 3: `reporting_wos` (Data Laporan Work Order Teknisi)**
+#### Tabel 4: `users` — Akun Admin
 
-*Menyimpan data impor laporan pengoperasian WO dari sistem lapangan.*
-
-| Field Name | Type Data MySQL | Attributes | Deskripsi / Aturan |
-| --- | --- | --- | --- |
-| `id` | `BIGINT` | Primary Key, Auto Increment | ID Unik Transaksi |
-| `no_order` | `VARCHAR(100)` | Indexed, Not Null | Nomor Work Order (misal: `WO20264384690`) |
-| `cid` | `VARCHAR(50)` | Nullable | ID Pelanggan / Circuit ID |
-| `serial_number` | `VARCHAR(100)` | Foreign Key, Not Null | Terhubung ke `ont_masuks(serial_number)` |
-| `nama_teknisi` | `VARCHAR(150)` | Not Null | Nama teknisi pada laporan WO |
-| `nik_teknisi` | `VARCHAR(50)` | Nullable | NIK Teknisi |
-| `status_wo` | `VARCHAR(50)` | Not Null | Status WO (misal: `Work Order Selesai`) |
-| `tanggal_sa` | `DATE` | Nullable | Tanggal Service Advice / Penyelesaian |
-| `vendor` | `VARCHAR(100)` | Nullable | Nama Vendor/Mitra (misal: `Telkom Akses PT`) |
-| `sektor` | `VARCHAR(50)` | Nullable | Kode sektor area pengerjaan |
-| `cek_match` | `VARCHAR(50)` | Nullable | Status kesesuaian (`SESUAI` / `Beda`) |
-| `created_at` | `TIMESTAMP` | Nullable | Default Laravel |
-| `updated_at` | `TIMESTAMP` | Nullable | Default Laravel |
-
----
-
-### 4. Spesifikasi Fitur Utama (Functional Requirements)
-
-#### **A. Modul ONT Masuk**
-
-1. **Import File Excel/CSV:** Fitur untuk mengunggah file spreadsheet berkapasitas besar agar banyak *Serial Number* dapat di-input secara masal sekaligus.
-2. **Input Manual Single-Item:** Form input cepat untuk menambahkan satu unit ONT jika ada barang susulan.
-3. **Halaman Daftar Data ONT Masuk:** Halaman terpisah yang menampilkan seluruh tabel inventaris ONT Masuk, dilengkapi fitur pencarian (*Search*) dan pembagian halaman (*Pagination*).
-4. **Validasi Anti-Duplikat:** Sistem menolak penginputan secara otomatis jika *Serial Number* sudah pernah terdaftar di tabel `ont_masuks`.
-
-#### **B. Modul ONT Keluar**
-
-1. **Input Penyerahan Barang:** Form untuk mencatat penyerahan unit ke teknisi dengan parameter: *Nama Teknisi*, *Tanggal Keluar*, dan *Serial Number ONT*.
-2. **Validasi Keberadaan Barang:** Sistem hanya mengizinkan pengeluaran *Serial Number* yang sudah terdaftar di data `ont_masuks`.
-3. **Update Status Kerusakan (Editable):** Admin dapat membuka baris data ONT Keluar untuk memperbarui kolom `keterangan` menjadi **"Rusak"** serta menambah `catatan` detail kerusakan jika barang dikembalikan dalam keadaan cacat.
-4. **Status Default (Nullable):** Kolom `keterangan` bernilai kosong (`null`) secara default, yang menandakan perangkat dibawa teknisi dalam kondisi normal.
-
-#### **C. Modul Reporting Work Order**
-
-1. **Import Excel Reporting WO:** Modul khusus untuk mengunggah file rekap laporan WO teknisi (`reporting_wo.xlsx`).
-2. **Pencocokan Data (Auto-Match):** Sistem memeriksa apakah `serial_number` pada laporan WO cocok dengan data `ont_keluars` yang pernah diambil teknisi tersebut.
-3. **Halaman Monitoring WO:** Tabel daftar laporan WO yang dapat difilter berdasarkan status (*Work Order Selesai* vs *Belum Selesai*) dan Nama Teknisi.
-
-#### **D. Modul Dashboard & Rekapitulasi Auto**
-
-1. **Rangkuman Metric Cards:** Menampilkan 4 statistik utama secara *real-time*:
-* Total ONT Masuk (Gudang).
-* Total ONT Keluar (Dibawa Teknisi).
-* Total INSTALLED (Perangkat terpasang di lokasi pelanggan).
-* Total NOT INSTALLED (Perangkat belum terpasang / masih di teknisi).
-* Total ONT Rusak.
-
-
-2. **Tabel Rekapitulasi Per Teknisi (Performa Teknisi):**
-Tabel rekapitulasi otomatis yang mengelompokkan data per *Nama Teknisi* dengan kolom:
-* **NAMA TEKNISI**
-* **INSTALLED:** Jumlah unit ONT milik teknisi yang tercatat di `reporting_wos` dengan `status_wo = 'Work Order Selesai'`.
-* **NOT INSTALLED:** Selisih unit yang dibawa teknisi namun belum berstatus *Work Order Selesai* ($\text{Total Dibawa} - \text{INSTALLED}$).
-* **RUSAK:** Jumlah unit milik teknisi yang ditandai status `"Rusak"` pada tabel `ont_keluars`.
-* **TOTAL DIBAWA:** Total akumulasi fisik unit ONT yang diambil oleh teknisi.
-* **Baris Grand Total:** Baris akumulasi akhir di bagian bawah tabel untuk menghitung total seluruh teknisi secara otomatis.
-
-
+| Field | Type | Deskripsi |
+| :--- | :--- | :--- |
+| `id` | BIGINT | PK |
+| `name` | VARCHAR | Nama admin |
+| `email` | VARCHAR | Email login (unique) |
+| `password` | VARCHAR | Bcrypt hash |
+| `remember_token` | VARCHAR | Session remember |
+| `created_at` / `updated_at` | TIMESTAMP | — |
 
 ---
 
-### 5. Aturan Bisnis & Validasi (Business Rules)
+### 4. Modul & Fitur yang Sudah Diimplementasikan
 
-* **BR-01 (Integritas Serial Number):** Pengeluaran barang (`ont_keluars`) & Laporan WO (`reporting_wos`) wajib terikat pada *Serial Number* yang terdaftar di `ont_masuks`.
-* **BR-02 (Satu Transaksi Keluar per SN):** Satu *Serial Number* yang sama tidak boleh dicatat keluar dua kali kecuali data sebelumnya sudah dihapus/dibatalkan.
-* **BR-03 (Nilai Keterangan):** Kolom `keterangan` pada `ont_keluars` bersifat *nullable* dan khusus diisi string `"Rusak"`.
-* **BR-04 (Rekonsiliasi Status Work Order):**
-* Unit ONT berstatus **INSTALLED** jika `serial_number` tersebut ada di tabel `reporting_wos` dengan `status_wo = 'Work Order Selesai'`.
-* Jika belum ada laporan WO Selesai untuk SN tersebut, maka unit otomatis dikategorikan **NOT INSTALLED**.
+#### A. Autentikasi (`AuthController`)
 
+**Route:**
+- `GET /login` → halaman login (guest only)
+- `POST /login` → proses login
+- `POST /logout` → proses logout (auth required)
 
-
----
-
-### 6. Peta Navigasi Halaman (Information Architecture)
-
-```
-[Dashboard Utama]
-  ├── Card Metric (Total Masuk | Total Keluar | Total INSTALLED | Total NOT INSTALLED | Total Rusak)
-  └── Tabel Rekapitulasi per Teknisi (Nama Teknisi | Installed | Not Installed | Rusak | Total Dibawa)
-  │
-  ├── [Menu ONT Masuk]
-  │     ├── Form Upload Excel / Input Manual
-  │     └── Tabel Daftar ONT Masuk (Search & Pagination)
-  │
-  ├── [Menu ONT Keluar]
-  │     ├── Form Penyerahan ke Teknisi
-  │     ├── Tabel Daftar ONT Keluar
-  │     └── Modal Update Status "Rusak" & Catatan
-  │
-  └── [Menu Reporting WO]
-        ├── Form Upload Excel Laporan WO
-        └── Tabel Daftar Laporan Work Order (Filter Status WO & Teknisi)
-
-```
-
-```
+**Fitur:**
+- Login dengan email + password menggunakan `Auth::attempt()`
+- Opsi "Remember Me" (session persist)
+- Redirect ke halaman yang dituju setelah login (`intended`)
+- Semua route selain login dilindungi middleware `auth`
+- Session regenerate saat login/logout untuk keamanan
 
 ---
 
-Dokumen `PRD.md` di atas sudah mencakup seluruh kebutuhan teknis dan alur bisnis sistem.
+#### B. Dashboard (`DashboardController`)
+
+**Route:** `GET /` (auth)
+
+**Metric Cards yang ditampilkan:**
+| Metric | Formula |
+| :--- | :--- |
+| Total ONT Masuk | `COUNT(ont_masuks)` |
+| Total ONT Keluar | `COUNT(ont_keluars)` |
+| Sisa Stok Gudang | `Total Masuk - Total Keluar` |
+| INSTALLED | `COUNT DISTINCT serial_number di reporting_wos WHERE status_wo LIKE '%selesai%'` |
+| NOT INSTALLED | `Total Keluar - INSTALLED` |
+| Unit Rusak | `COUNT(ont_keluars WHERE keterangan = 'Rusak')` |
+
+**Tabel Rekapitulasi per Teknisi:**
+- Menggabungkan data dari `ont_keluars` dan `reporting_wos`
+- Per teknisi: INSTALLED, NOT INSTALLED, RUSAK, TOTAL DIBAWA, Rasio % (progress bar)
+- Grand total row di footer tabel
+- Live search filter nama teknisi (JavaScript)
+- Diurutkan berdasarkan total unit terbanyak
+
+---
+
+#### C. Modul ONT Masuk (`OntMasukController`)
+
+**Routes:**
+```
+GET  /ont-masuk           → index (daftar + search + filter brand + pagination)
+POST /ont-masuk           → store (input manual 1 unit)
+POST /ont-masuk/import    → import massal Excel/CSV
+GET  /ont-masuk/template  → download template .xlsx
+DELETE /ont-masuk/{id}    → hapus 1 unit
+```
+
+**Fitur:**
+1. **Input Barcode Scanner USB** — `autofocus` permanen di field SN, auto-submit saat Enter
+2. **Auto-Detect Merek** dari prefix SN:
+   - `ZTE` → ZTE | `FHTT` → Fiberhome | `ALCL` → Nokia | `48575443`/`HWTC` → Huawei
+   - Berlaku di form manual maupun import Excel (`OntMasuk::detectBrand()`)
+3. **Import Massal Excel/CSV** — maks 10MB, skip baris duplikat SN, laporan ringkasan hasil import
+4. **Download Template** `.xlsx` berisi header + 3 baris contoh, header styling merah
+5. **Tabel Inventaris** — paginate 15, search SN/brand, filter dropdown brand, copy SN ke clipboard, hapus data
+6. **Validasi Backend** — SN unique, tanggal wajib, brand nullable
+
+---
+
+#### D. Modul ONT Keluar (`OntKeluarController`)
+
+**Routes:**
+```
+GET  /ont-keluar               → index (daftar + search + filter kondisi + pagination)
+POST /ont-keluar               → store (catat penyerahan baru)
+POST /ont-keluar/update-status → updateStatus (ubah kondisi via modal)
+DELETE /ont-keluar/{id}        → destroy (hapus transaksi)
+```
+
+**Fitur:**
+1. **Form Penyerahan** — Nama Teknisi, Tanggal, Serial Number dengan datalist autocomplete dari stok tersedia
+2. **Datalist SN Tersedia** — hanya menampilkan unit yang ada di `ont_masuks` dan belum pernah diserahkan
+3. **Validasi Backend** (BR-01 & BR-02):
+   - SN wajib ada di `ont_masuks`
+   - SN belum pernah diserahkan (cek `ont_keluars`)
+4. **Modal Ubah Kondisi** — update status Normal/Rusak + catatan kerusakan tanpa reload halaman
+5. **Tabel Transaksi** — paginate 15, search SN/teknisi, filter kondisi Normal/Rusak, badge status, copy SN, hapus
+
+---
+
+#### E. Modul Reporting WO (`ReportingWoController`)
+
+**Routes:**
+```
+GET  /reporting-wo          → index (daftar + filter + pagination)
+POST /reporting-wo/import   → import Excel laporan WO (maks 20MB)
+GET  /reporting-wo/template → download template .xlsx (10 kolom)
+DELETE /reporting-wo/{id}   → destroy
+```
+
+**Fitur:**
+1. **Import Excel Laporan WO** dari app ticketing lapangan (Sigma/SIAPDEH/dll)
+   - Kolom fleksibel (mendukung alias nama kolom: `no_wo`, `sn`, dll.)
+   - Skip baris kosong / SN tidak terdaftar di `ont_masuks` (BR-01)
+   - Upsert: jika `no_order` sudah ada → UPDATE, baru → INSERT
+   - Parsing tanggal otomatis (Excel serial number & string format)
+   - Laporan ringkasan: imported, updated, unregistered SN, skipped
+2. **Auto-Match Rekonsiliasi** (`cek_match`):
+   - Cek apakah SN di laporan WO cocok dengan nama teknisi di `ont_keluars`
+   - `SESUAI` → teknisi sama | `Beda` → beda personil
+3. **Download Template** `.xlsx` 10 kolom dengan header merah + 3 baris contoh
+4. **Tabel Monitoring** — paginate 15, search WO/SN/CID, filter status WO, filter teknisi dropdown, badge Auto-Match, copy SN, hapus
+5. **Header Summary Badges** — Total WO, INSTALLED, NOT INSTALLED
+
+---
+
+### 5. Aturan Bisnis (Business Rules)
+
+| Kode | Aturan |
+| :--- | :--- |
+| **BR-01** | SN di `ont_keluars` & `reporting_wos` wajib terdaftar di `ont_masuks` |
+| **BR-02** | Satu SN hanya boleh diserahkan satu kali (cek `ont_keluars`) |
+| **BR-03** | Kolom `keterangan` di `ont_keluars` diisi `"Rusak"` atau dibiarkan null (Normal) |
+| **BR-04** | INSTALLED = `status_wo LIKE '%selesai%'`; NOT INSTALLED = Total Dibawa − INSTALLED |
+| **BR-05** | Deteksi merek otomatis: `ZTE` → ZTE, `FHTT` → Fiberhome, `ALCL` → Nokia, `48575443`/`HWTC` → Huawei |
+| **BR-06** | Laporan WO berasal dari export app ticketing lapangan; SN diisi otomatis oleh sistem saat teknisi scan di lokasi pelanggan |
+
+---
+
+### 6. Peta Navigasi & Route Map
 
 ```
+[GET /login]                    → Halaman login (guest only)
+[POST /login]                   → Proses autentikasi
+[POST /logout]                  → Logout
+
+── Semua route di bawah dilindungi middleware auth ──
+
+[GET /]                         → Dashboard (metric cards + tabel rekap teknisi)
+│
+├─ [GET /ont-masuk]             → Halaman ONT Masuk
+│  ├─ [POST /ont-masuk]         → Simpan 1 unit (barcode scan / manual)
+│  ├─ [POST /ont-masuk/import]  → Import massal Excel/CSV
+│  ├─ [GET  /ont-masuk/template]→ Download template .xlsx
+│  └─ [DELETE /ont-masuk/{id}]  → Hapus unit
+│
+├─ [GET /ont-keluar]              → Halaman ONT Keluar
+│  ├─ [POST /ont-keluar]          → Catat penyerahan ke teknisi
+│  ├─ [POST /ont-keluar/update-status] → Ubah kondisi Normal/Rusak (modal)
+│  └─ [DELETE /ont-keluar/{id}]   → Hapus transaksi
+│
+└─ [GET /reporting-wo]            → Halaman Reporting WO
+   ├─ [POST /reporting-wo/import] → Import Excel laporan WO
+   ├─ [GET  /reporting-wo/template] → Download template .xlsx
+   └─ [DELETE /reporting-wo/{id}]   → Hapus laporan
+
+── Fitur Rencana (Belum Diimplementasikan) ──
+
+[ ] [GET /profil]               → Halaman Profil Admin
+[ ] [POST /profil]              → Update nama/email/password
+```
+
+---
+
+### 7. Design System & UI
+
+| Token | Nilai |
+| :--- | :--- |
+| Font | Plus Jakarta Sans (400/500/600/700/800) |
+| Body background | `#fafafa` |
+| Warna aksen | `#b91c1c` (hover: `#991b1b`) |
+| Merah light | bg `#fef2f2`, border `#fee2e2` |
+| Card | border `#f0f0f2`, radius `14px`, shadow minimal |
+| Input | border `#e2e8f0`, radius `7px`, focus border `#f87171` |
+| Badge hijau | bg `#f0fdf4` text `#166534` border `#dcfce7` |
+| Badge abu | bg `#f8fafc` text `#64748b` border `#e2e8f0` |
+| Icon library | Bootstrap Icons (`bi bi-*`) |
+| Layout | Top navbar horizontal (bukan sidebar) |
+| Nav active | bg `#fef2f2`, text `#b91c1c`, weight 600 |
+
+---
+
+### 8. Fitur yang Belum Diimplementasikan (Backlog)
+
+| # | Fitur | Prioritas |
+| :--- | :--- | :--- |
+| 1 | Halaman Profil Admin (edit nama, email, password) | Medium |
+| 2 | Layout sidebar vertikal (mengganti top navbar) | Low |
+| 3 | Export Excel data ONT Masuk / ONT Keluar / Reporting WO | Medium |
+| 4 | Multi-user / role management | Low |

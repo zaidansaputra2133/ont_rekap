@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 
 class OntMasuk extends Model
 {
@@ -24,11 +24,13 @@ class OntMasuk extends Model
      */
     public function scopeSearch(Builder $query, ?string $keyword): Builder
     {
-        if (!$keyword) return $query;
+        if (! $keyword) {
+            return $query;
+        }
 
         return $query->where(function ($q) use ($keyword) {
             $q->where('serial_number', 'like', "%{$keyword}%")
-              ->orWhere('brand', 'like', "%{$keyword}%");
+                ->orWhere('brand', 'like', "%{$keyword}%");
         });
     }
 
@@ -37,7 +39,9 @@ class OntMasuk extends Model
      */
     public function scopeFilterBrand(Builder $query, ?string $brand): Builder
     {
-        if (!$brand) return $query;
+        if (! $brand) {
+            return $query;
+        }
 
         return $query->where('brand', $brand);
     }
@@ -47,7 +51,7 @@ class OntMasuk extends Model
      */
     public function sudahKeluar(): bool
     {
-        return \App\Models\OntKeluar::where('serial_number', $this->serial_number)->exists();
+        return OntKeluar::where('serial_number', $this->serial_number)->exists();
     }
 
     /**
@@ -59,7 +63,7 @@ class OntMasuk extends Model
      */
     public static function detectBrand(?string $serialNumber): ?string
     {
-        if (!$serialNumber) {
+        if (! $serialNumber) {
             return null;
         }
 

@@ -22,9 +22,9 @@ return new class extends Migration
 
             // FK ke ont_masuks.serial_number
             $table->foreign('serial_number')
-                  ->references('serial_number')
-                  ->on('ont_masuks')
-                  ->onDelete('cascade');
+                ->references('serial_number')
+                ->on('ont_masuks')
+                ->onDelete('cascade');
         });
     }
 

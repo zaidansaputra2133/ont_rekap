@@ -209,27 +209,46 @@
 </div>
 
 <!-- Table Section: List ONT Masuk (Search & Pagination) -->
-<div class="card card-custom">
+<div class="card card-custom" id="tabel-rekap">
     <div class="card-header bg-white border-bottom p-3">
         <div class="row g-2 align-items-center">
-            <div class="col-md-5">
+            <div class="col-xl-4 col-lg-3 col-md-12">
                 <h6 class="fw-bold mb-0 text-dark">Daftar ONT Masuk</h6>
             </div>
-            <div class="col-md-7">
-                <form action="{{ route('ont-masuk.index') }}" method="GET" class="d-flex gap-2 justify-content-md-end">
-                    <div class="input-group input-group-sm" style="max-width: 240px;">
-                        <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-search"></i></span>
-                        <input type="text" name="search" class="form-control border-start-0" placeholder="Cari SN atau merek..." value="{{ $search ?? '' }}">
+            <div class="col-xl-8 col-lg-9 col-md-12">
+                <div class="d-flex flex-wrap gap-2 justify-content-md-end align-items-center">
+                    <!-- Quick Brand Filter Pills (Satu klik langsung filter tanpa tombol filter) -->
+                    <div class="btn-group btn-group-sm brand-pills-group" role="group" aria-label="Filter Merek">
+                        <button type="button" class="btn btn-brand-pill {{ empty($brand) ? 'active' : '' }}" data-brand="">Semua</button>
+                        <button type="button" class="btn btn-brand-pill {{ ($brand ?? '') == 'ZTE' ? 'active' : '' }}" data-brand="ZTE">ZTE</button>
+                        <button type="button" class="btn btn-brand-pill {{ ($brand ?? '') == 'Huawei' ? 'active' : '' }}" data-brand="Huawei">Huawei</button>
+                        <button type="button" class="btn btn-brand-pill {{ ($brand ?? '') == 'Fiberhome' ? 'active' : '' }}" data-brand="Fiberhome">Fiberhome</button>
+                        <button type="button" class="btn btn-brand-pill {{ ($brand ?? '') == 'Nokia' ? 'active' : '' }}" data-brand="Nokia">Nokia</button>
                     </div>
-                    <select name="brand" class="form-select form-select-sm" style="max-width: 130px;">
-                        <option value="">Semua Merek</option>
+
+                    <!-- Dropdown Brand Filter (Pilihan alternatif dropdown) -->
+                    <select id="filterBrandSelect" class="form-select form-select-sm d-none d-sm-block" style="max-width: 125px;">
+                        <option value="" {{ empty($brand) ? 'selected' : '' }}>Semua Merek</option>
                         <option value="ZTE" {{ ($brand ?? '') == 'ZTE' ? 'selected' : '' }}>ZTE</option>
                         <option value="Huawei" {{ ($brand ?? '') == 'Huawei' ? 'selected' : '' }}>Huawei</option>
                         <option value="Fiberhome" {{ ($brand ?? '') == 'Fiberhome' ? 'selected' : '' }}>Fiberhome</option>
                         <option value="Nokia" {{ ($brand ?? '') == 'Nokia' ? 'selected' : '' }}>Nokia</option>
                     </select>
-                    <button type="submit" class="btn btn-outline-secondary btn-sm px-2.5">Filter</button>
-                </form>
+
+                    <!-- Form Search SN -->
+                    <form action="{{ route('ont-masuk.index') }}" method="GET" id="formFilter" class="d-flex gap-1 align-items-center m-0">
+                        <input type="hidden" name="brand" id="filterBrandInput" value="{{ $brand ?? '' }}">
+                        <div class="input-group input-group-sm" style="max-width: 200px;">
+                            <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-search"></i></span>
+                            <input type="text" name="search" id="filterSearchInput" class="form-control border-start-0" placeholder="Cari SN atau merek..." value="{{ $search ?? '' }}">
+                        </div>
+                        @if($search || $brand)
+                            <button type="button" id="btnResetFilter" class="btn btn-light btn-sm text-muted px-2 border" title="Reset Filter">
+                                <i class="bi bi-x-circle"></i>
+                            </button>
+                        @endif
+                    </form>
+                </div>
             </div>
         </div>
     </div>
@@ -243,7 +262,7 @@
                     <th>Merek</th>
                     <th>Tgl Masuk</th>
                     <th>Waktu Catat</th>
-                    <th class="text-center" style="width: 70px;">Aksi</th>
+                    <th class="text-center" style="width: 100px;">Aksi</th>
                 </tr>
             </thead>
             <tbody>
@@ -273,14 +292,27 @@
                         <span class="text-muted small">{{ $item->created_at->format('d M Y, H:i') }}</span>
                     </td>
                     <td class="text-center">
-                        <form action="{{ route('ont-masuk.destroy', $item->id) }}" method="POST"
-                            onsubmit="return confirm('Hapus unit ONT {{ $item->serial_number }}?')">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit" class="btn btn-sm btn-link text-danger p-0" title="Hapus">
-                                <i class="bi bi-x-lg"></i>
+                        <div class="d-flex gap-1 justify-content-center">
+                            <button type="button"
+                                class="btn btn-sm btn-outline-theme py-1 px-2 rounded-2"
+                                style="font-size: 0.78rem;"
+                                onclick="openEditMasukModal(
+                                    '{{ $item->id }}',
+                                    '{{ $item->serial_number }}',
+                                    '{{ $item->brand ?? '' }}',
+                                    '{{ $item->tanggal_masuk->format('Y-m-d') }}'
+                                )">
+                                <i class="bi bi-pencil"></i>
                             </button>
-                        </form>
+                            <form action="{{ route('ont-masuk.destroy', $item->id) }}" method="POST"
+                                onsubmit="return confirm('Hapus unit ONT {{ $item->serial_number }}?')">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn btn-sm btn-link text-danger p-0" title="Hapus">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </form>
+                        </div>
                     </td>
                 </tr>
                 @empty
@@ -311,6 +343,89 @@
 </div>
 @endsection
 
+{{-- Modal Edit ONT Masuk --}}
+<div class="modal fade" id="modalEditMasuk" tabindex="-1" aria-labelledby="modalEditMasukLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-sm rounded-3">
+            <div class="modal-header bg-white border-bottom px-3 py-2">
+                <h6 class="modal-title fw-bold text-dark" id="modalEditMasukLabel">
+                    <i class="bi bi-pencil-square me-1"></i> Edit Data ONT Masuk
+                </h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="formEditMasuk" method="POST" action="">
+                @csrf
+                @method('PUT')
+                <div class="modal-body p-3">
+                    <div class="mb-3">
+                        <label for="edit_serial_number" class="form-label">Serial Number (SN) <span class="text-muted small">*</span></label>
+                        <input type="text"
+                            class="form-control font-monospace"
+                            id="edit_serial_number" name="serial_number"
+                            placeholder="Contoh: ZTEGC3FA7280"
+                            required autocomplete="off">
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_brand" class="form-label">Merek / Vendor</label>
+                        <select class="form-select" id="edit_brand" name="brand">
+                            <option value="">-- Pilih Merek (Opsional) --</option>
+                            <option value="ZTE">ZTE</option>
+                            <option value="Huawei">Huawei</option>
+                            <option value="Fiberhome">Fiberhome</option>
+                            <option value="Nokia">Nokia</option>
+                            <option value="Lainnya">Lainnya</option>
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label for="edit_tanggal_masuk" class="form-label">Tanggal Penerimaan <span class="text-muted small">*</span></label>
+                        <input type="date"
+                            class="form-control"
+                            id="edit_tanggal_masuk" name="tanggal_masuk"
+                            required>
+                    </div>
+                </div>
+                <div class="modal-footer bg-white border-top px-3 py-2">
+                    <button type="button" class="btn btn-outline-secondary btn-sm rounded-2" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-custom-primary btn-sm rounded-2" id="btnSimpanEditMasuk">
+                        <i class="bi bi-check2 me-1"></i> Simpan Perubahan
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@push('styles')
+<style>
+    .btn-brand-pill {
+        font-size: 0.78rem;
+        font-weight: 500;
+        padding: 0.28rem 0.68rem;
+        border-color: #dee2e6;
+        color: #475569;
+        background-color: #fff;
+        transition: all 0.15s ease-in-out;
+    }
+    .btn-brand-pill:hover {
+        background-color: #f1f5f9;
+        border-color: #cbd5e1;
+        color: #0f172a;
+    }
+    .btn-brand-pill.active {
+        background-color: var(--theme-red, #b91c1c) !important;
+        border-color: var(--theme-red, #b91c1c) !important;
+        color: #ffffff !important;
+        font-weight: 600;
+        box-shadow: 0 1px 3px rgba(185, 28, 28, 0.25);
+    }
+    .table-loading-fade {
+        opacity: 0.45;
+        pointer-events: none;
+        transition: opacity 0.15s ease;
+    }
+</style>
+@endpush
+
 @push('scripts')
 <script>
     function updateFileName(input) {
@@ -327,6 +442,149 @@
             bsAlert.close();
         });
     }, 4000);
+
+    // ==============================================================
+    // AJAX FILTERING REKAPAN (LANGSUNG FILTER & HALAMAN TIDAK NAIK)
+    // ==============================================================
+    function initTabelRekapFilter() {
+        const tableCard = document.getElementById('tabel-rekap');
+        if (!tableCard) return;
+
+        // Klik Pill Merek (ZTE, Huawei, dll) -> langsung filter tanpa tombol
+        const pills = tableCard.querySelectorAll('.btn-brand-pill');
+        pills.forEach(pill => {
+            pill.addEventListener('click', function (e) {
+                e.preventDefault();
+                const brand = this.getAttribute('data-brand') || '';
+                const search = document.getElementById('filterSearchInput')?.value || '';
+                applyRekapFilter({ brand: brand, search: search });
+            });
+        });
+
+        // Pilihan Dropdown Merek -> langsung filter saat dipilih
+        const brandSelect = document.getElementById('filterBrandSelect');
+        if (brandSelect) {
+            brandSelect.addEventListener('change', function () {
+                const brand = this.value;
+                const search = document.getElementById('filterSearchInput')?.value || '';
+                applyRekapFilter({ brand: brand, search: search });
+            });
+        }
+
+        // Form Submit Cari SN (tekan Enter pada input search)
+        const formFilter = document.getElementById('formFilter');
+        if (formFilter) {
+            formFilter.addEventListener('submit', function (e) {
+                e.preventDefault();
+                const brand = document.getElementById('filterBrandInput')?.value || 
+                              document.getElementById('filterBrandSelect')?.value || '';
+                const search = document.getElementById('filterSearchInput')?.value || '';
+                applyRekapFilter({ brand: brand, search: search });
+            });
+        }
+
+        // Tombol Reset Filter
+        const resetBtn = document.getElementById('btnResetFilter');
+        if (resetBtn) {
+            resetBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                applyRekapFilter({ brand: '', search: '' });
+            });
+        }
+
+        // Intercept link Pagination agar halaman tidak lompat ke atas saat ganti page
+        const paginationLinks = tableCard.querySelectorAll('.pagination a');
+        paginationLinks.forEach(link => {
+            link.addEventListener('click', function (e) {
+                e.preventDefault();
+                if (this.href) {
+                    applyRekapFilterFromUrl(this.href);
+                }
+            });
+        });
+    }
+
+    function applyRekapFilter(params) {
+        const baseUrl = "{{ route('ont-masuk.index') }}";
+        const url = new URL(baseUrl, window.location.origin);
+
+        if (params.brand) {
+            url.searchParams.set('brand', params.brand);
+        }
+        if (params.search) {
+            url.searchParams.set('search', params.search);
+        }
+
+        applyRekapFilterFromUrl(url.toString());
+    }
+
+    function applyRekapFilterFromUrl(fullUrl) {
+        const tableCard = document.getElementById('tabel-rekap');
+        if (!tableCard) {
+            window.location.href = fullUrl;
+            return;
+        }
+
+        // Simpan posisi scroll sebelum request agar halaman TIDAK LOMPAT KE ATAS
+        const currentScrollY = window.scrollY;
+
+        const tableContent = tableCard.querySelector('.table-responsive') || tableCard;
+        tableContent.classList.add('table-loading-fade');
+
+        fetch(fullUrl, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => {
+            if (!response.ok) throw new Error('Network error');
+            return response.text();
+        })
+        .then(html => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const newCard = doc.getElementById('tabel-rekap');
+
+            if (newCard) {
+                tableCard.innerHTML = newCard.innerHTML;
+                window.history.pushState(null, '', fullUrl);
+
+                // Pertahankan posisi scroll user tanpa berpindah
+                window.scrollTo({ top: currentScrollY, behavior: 'instant' });
+
+                // Re-bind event listener pada elemen baru
+                initTabelRekapFilter();
+            } else {
+                window.location.href = fullUrl;
+            }
+        })
+        .catch(err => {
+            console.error('Filter error:', err);
+            window.location.href = fullUrl;
+        })
+        .finally(() => {
+            tableContent.classList.remove('table-loading-fade');
+        });
+    }
+
+    // Tangani browser back/forward button
+    window.addEventListener('popstate', function () {
+        applyRekapFilterFromUrl(window.location.href);
+    });
+
+    // Inisialisasi saat pertama kali load
+    document.addEventListener('DOMContentLoaded', function () {
+        initTabelRekapFilter();
+
+        // Jika halaman dibuka langsung via URL berparameter filter / pagination, scroll ke tabel
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('brand') || urlParams.has('search') || urlParams.has('page') || window.location.hash === '#tabel-rekap') {
+            const tableElement = document.getElementById('tabel-rekap');
+            if (tableElement) {
+                tableElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+    });
 
     // ==========================================
     // LOGIKA SCANNER BARCODE & AUTO-DETECT BRAND
@@ -403,6 +661,40 @@
                 if (submitBtn) {
                     submitBtn.disabled = true;
                     submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Menyimpan Unit...';
+                }
+            });
+        }
+    });
+
+    // ==========================================
+    // FUNGSI MODAL EDIT ONT MASUK
+    // ==========================================
+    function openEditMasukModal(id, sn, brand, tanggalMasuk) {
+        const baseUrl = "{{ url('ont-masuk') }}";
+        document.getElementById('formEditMasuk').action = baseUrl + '/' + id;
+        document.getElementById('edit_serial_number').value = sn;
+        document.getElementById('edit_brand').value = brand || '';
+        document.getElementById('edit_tanggal_masuk').value = tanggalMasuk;
+
+        const modal = new bootstrap.Modal(document.getElementById('modalEditMasuk'));
+        modal.show();
+
+        // Fokus ke field SN setelah modal terbuka
+        document.getElementById('modalEditMasuk').addEventListener('shown.bs.modal', function handler() {
+            document.getElementById('edit_serial_number').focus();
+            this.removeEventListener('shown.bs.modal', handler);
+        });
+    }
+
+    // Efek loading tombol saat form edit disubmit
+    document.addEventListener('DOMContentLoaded', function () {
+        const formEdit = document.getElementById('formEditMasuk');
+        if (formEdit) {
+            formEdit.addEventListener('submit', function () {
+                const btn = document.getElementById('btnSimpanEditMasuk');
+                if (btn) {
+                    btn.disabled = true;
+                    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Menyimpan...';
                 }
             });
         }

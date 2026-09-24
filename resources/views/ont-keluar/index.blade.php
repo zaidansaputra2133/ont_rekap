@@ -51,15 +51,21 @@
                 <form action="{{ route('ont-keluar.store') }}" method="POST" id="formOntKeluar" autocomplete="off">
                     @csrf
                     <div class="row g-3">
-                        <div class="col-12">
+                        <div class="col-md-6">
                             <label for="nama_teknisi" class="form-label">Nama Teknisi <span class="text-muted small">*</span></label>
                             <input type="text"
+                                list="daftar_teknisi_list"
                                 autocomplete="off"
                                 class="form-control @error('nama_teknisi') is-invalid @enderror"
                                 id="nama_teknisi" name="nama_teknisi"
                                 placeholder="Nama personil teknisi"
                                 value="{{ old('nama_teknisi') }}"
                                 required autofocus>
+                            <datalist id="daftar_teknisi_list">
+                                @foreach($daftarTeknisi as $nama)
+                                    <option value="{{ $nama }}">
+                                @endforeach
+                            </datalist>
                             @error('nama_teknisi')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
@@ -77,40 +83,119 @@
                             @enderror
                         </div>
 
-                        <div class="col-md-6">
-                            <div class="d-flex justify-content-between align-items-center mb-1">
-                                <label for="serial_number" class="form-label mb-0">Serial Number (SN) <span class="text-muted small">*</span></label>
-                                <span class="badge badge-soft-secondary text-secondary" style="font-size: 0.72rem;">
-                                    Stok Tersedia: <strong class="text-dark">{{ $availableOnts->count() }}</strong> Unit
-                                </span>
-                            </div>
-                            <input type="text"
-                                list="available_sn_list"
-                                autocomplete="off"
-                                class="form-control font-monospace @error('serial_number') is-invalid @enderror"
-                                id="serial_number" name="serial_number"
-                                placeholder="Pilih stok atau scan barcode..."
-                                value="{{ old('serial_number') }}"
-                                required>
-                            <datalist id="available_sn_list">
-                                @foreach($availableOnts as $ont)
-                                    <option value="{{ $ont->serial_number }}">{{ $ont->brand ? $ont->brand : 'ONT' }} (Masuk: {{ $ont->tanggal_masuk ? $ont->tanggal_masuk->format('d/m/Y') : '-' }})</option>
-                                @endforeach
-                            </datalist>
-                            @error('serial_number')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
+                        {{-- Hidden Input untuk Serial Number dari Checkbox --}}
+                        <input type="hidden" id="serial_number" name="serial_number" value="{{ old('serial_number') }}">
 
+                        @error('serial_number')
                         <div class="col-12">
-                            <div class="text-muted" style="font-size: 0.74rem;">
-                                *Hanya menampilkan unit yang masih ada di stok gudang (unit yang sudah diserahkan otomatis hilang dari daftar). Mendukung tembak barcode scanner USB.
+                            <div class="alert alert-danger py-2 px-3 mb-0 rounded-2 d-flex align-items-center gap-2" style="font-size: 0.8rem;">
+                                <i class="bi bi-exclamation-circle-fill fs-6 flex-shrink-0"></i>
+                                <span>{{ $message }}</span>
                             </div>
                         </div>
+                        @enderror
+
+                        @if($availableOnts->count() > 0)
+                        <div class="col-12">
+                            <div class="card border rounded-3 bg-white shadow-2xs overflow-hidden">
+                                <!-- Card Header -->
+                                <div class="card-header bg-light-subtle p-3 border-bottom">
+                                    <div class="d-flex align-items-center justify-content-between gap-2">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <i class="bi bi-box-seam text-danger fs-6"></i>
+                                            <span class="fw-bold text-dark small">Pilih Unit ONT dari Stok Gudang</span>
+                                        </div>
+                                        <span class="badge bg-secondary-subtle text-secondary border px-2.5 py-1 rounded-2" style="font-size:0.72rem;">
+                                            Tersedia: <strong>{{ $availableOnts->count() }}</strong> Unit
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <!-- Filter Controls (Filter Merek & Cari SN) -->
+                                <div class="p-3 bg-white border-bottom">
+                                    <div class="row g-2.5 align-items-center">
+                                        <div class="col-sm-6 col-12">
+                                            <label for="filter_brand_select" class="form-label mb-1 text-secondary fw-medium" style="font-size: 0.74rem;">Filter Merek:</label>
+                                            <select id="filter_brand_select" class="form-select form-select-sm py-1.5 rounded-2" style="font-size: 0.8rem;">
+                                                <option value="">-- Semua Merek ({{ $availableOnts->count() }}) --</option>
+                                                @foreach($availableBrands as $bName)
+                                                    @php
+                                                        $bCount = $availableOnts->where('brand', $bName)->count();
+                                                    @endphp
+                                                    <option value="{{ $bName }}">{{ $bName }} ({{ $bCount }} unit)</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div class="col-sm-6 col-12">
+                                            <label for="search_sn_input" class="form-label mb-1 text-secondary fw-medium" style="font-size: 0.74rem;">Cari SN:</label>
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text bg-light text-muted px-2.5 border-end-0"><i class="bi bi-search" style="font-size: 0.75rem;"></i></span>
+                                                <input type="text" id="search_sn_input" class="form-control font-monospace py-1.5 px-2.5 border-start-0" placeholder="Ketik SN..." style="font-size: 0.8rem;">
+                                                <button type="button" class="btn btn-outline-secondary btn-sm px-2" id="btn_clear_sn_search" title="Reset cari" style="font-size:0.75rem;"><i class="bi bi-x-lg"></i></button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Scrollable Checkbox List Area (1 Column Full Width per item) -->
+                                <div class="p-3" style="max-height: 250px; overflow-y: auto; overflow-x: hidden; background-color: #fafafa;" id="ont_checkbox_container">
+                                    <div class="d-flex flex-column gap-2" id="ont_checkbox_grid">
+                                        @foreach($availableOnts as $ont)
+                                        <div class="ont-item-wrapper w-100" data-brand="{{ $ont->brand }}" data-sn="{{ strtoupper($ont->serial_number) }}">
+                                            <label class="d-flex align-items-center gap-2.5 p-2 px-3 rounded-2 border bg-white cursor-pointer w-100 mb-0 ont-item-label transition-all" style="font-size: 0.8rem;">
+                                                <input type="checkbox" class="form-check-input flex-shrink-0 chk-ont-item my-0" value="{{ $ont->serial_number }}" data-brand="{{ $ont->brand }}" style="width: 1.05rem; height: 1.05rem; cursor: pointer;">
+                                                <span class="font-monospace fw-semibold text-dark text-truncate me-auto" title="{{ $ont->serial_number }}">{{ $ont->serial_number }}</span>
+                                                <span class="badge bg-secondary-subtle text-secondary px-2 py-0.5 rounded-1 fw-normal flex-shrink-0" style="font-size:0.7rem;">{{ $ont->brand }}</span>
+                                            </label>
+                                        </div>
+                                        @endforeach
+                                    </div>
+                                    <div id="no_ont_found_msg" class="text-center text-muted py-3 d-none" style="font-size:0.78rem;">
+                                        <i class="bi bi-exclamation-circle me-1"></i> Tidak ada unit yang cocok dengan filter.
+                                    </div>
+                                </div>
+
+                                <!-- Minimalist & Spacious Pagination Bar -->
+                                <div class="d-flex flex-wrap align-items-center justify-content-between p-2.5 px-3 bg-light-subtle border-top border-bottom" id="ont_pagination_bar" style="font-size: 0.78rem;">
+                                    <span class="text-muted fw-medium py-1" id="ont_page_info">Menampilkan 0 dari 0 unit</span>
+                                    <div class="d-flex align-items-center gap-2.5 py-1" id="ont_pagination_controls">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary border-secondary-subtle px-3 py-1 rounded-pill d-inline-flex align-items-center gap-1 transition-all" id="btn_ont_prev_page" style="font-size:0.75rem;" disabled>
+                                            <i class="bi bi-arrow-left" style="font-size: 0.75rem;"></i> <span>Prev</span>
+                                        </button>
+                                        <span class="badge bg-white text-dark border shadow-2xs px-2.5 py-1.5 rounded-pill font-monospace fw-bold" id="ont_page_indicator" style="font-size:0.75rem; min-width: 48px; text-align: center;">1 / 1</span>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary border-secondary-subtle px-3 py-1 rounded-pill d-inline-flex align-items-center gap-1 transition-all" id="btn_ont_next_page" style="font-size:0.75rem;" disabled>
+                                            <span>Next</span> <i class="bi bi-arrow-right" style="font-size: 0.75rem;"></i>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Selected Summary / Pills Container -->
+                                <div class="p-3 bg-light border-top">
+                                    <div class="d-flex justify-content-between align-items-center mb-1.5">
+                                        <span class="fw-semibold text-dark" style="font-size: 0.78rem;">
+                                            <i class="bi bi-check2-square text-success me-1 fs-6"></i>Unit Terpilih (<strong id="selected_total_count">0</strong>):
+                                        </span>
+                                        <button type="button" class="btn btn-link text-danger p-0 border-0 text-decoration-none fw-medium" id="btn_clear_all_selected" style="font-size:0.72rem; display:none;">
+                                            <i class="bi bi-trash me-0.5"></i> Reset Pilihan
+                                        </button>
+                                    </div>
+                                    <div class="d-flex flex-wrap gap-1.5 align-items-center" id="selected_pills_container" style="max-height: 80px; overflow-y: auto;">
+                                        <span class="text-muted fst-italic" id="empty_selected_hint" style="font-size: 0.74rem;">Belum ada unit yang dicentang.</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        @else
+                        <div class="col-12">
+                            <div class="alert alert-warning py-2.5 px-3 mb-0 rounded-2" style="font-size: 0.82rem;">
+                                <i class="bi bi-exclamation-triangle me-1"></i> Stok ONT di gudang kosong. Harap tambahkan unit pada menu <strong>ONT Masuk</strong>.
+                            </div>
+                        </div>
+                        @endif
 
                         <div class="col-12 mt-1">
-                            <button type="submit" class="btn btn-custom-primary w-100 py-2 d-flex align-items-center justify-content-center gap-2">
-                                <i class="bi bi-check2"></i> Catat Penyerahan Barang
+                            <button type="submit" class="btn btn-custom-primary w-100 py-2 d-flex align-items-center justify-content-center gap-2" id="btnSubmitOntKeluar">
+                                <i class="bi bi-check2-all fs-6"></i> Catat Penyerahan Barang
                             </button>
                         </div>
                     </div>
@@ -158,25 +243,41 @@
 </div>
 
 <!-- Table Section: List Transaksi ONT Keluar -->
-<div class="card card-custom">
+<div class="card card-custom" id="tabel-rekap-keluar">
     <div class="card-header bg-white border-bottom p-3">
         <div class="row g-2 align-items-center">
-            <div class="col-md-5">
+            <div class="col-xl-4 col-lg-3 col-md-12">
                 <h6 class="fw-bold mb-0 text-dark">Daftar Transaksi Keluar</h6>
             </div>
-            <div class="col-md-7">
-                <form action="{{ route('ont-keluar.index') }}" method="GET" class="d-flex gap-2 justify-content-md-end">
-                    <div class="input-group input-group-sm" style="max-width: 240px;">
-                        <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-search"></i></span>
-                        <input type="text" name="search" class="form-control border-start-0" placeholder="Cari SN atau teknisi..." value="{{ $search ?? '' }}">
+            <div class="col-xl-8 col-lg-9 col-md-12">
+                <div class="d-flex flex-wrap gap-2 justify-content-md-end align-items-center">
+                    <!-- Quick Status Pills -->
+                    <div class="btn-group btn-group-sm status-pills-group" role="group" aria-label="Filter Kondisi">
+                        <button type="button" class="btn btn-status-pill {{ empty($status) ? 'active' : '' }}" data-status="">Semua</button>
+                        <button type="button" class="btn btn-status-pill {{ ($status ?? '') == 'normal' ? 'active' : '' }}" data-status="normal">Normal</button>
+                        <button type="button" class="btn btn-status-pill {{ ($status ?? '') == 'rusak' ? 'active' : '' }}" data-status="rusak">Rusak</button>
                     </div>
-                    <select name="status" class="form-select form-select-sm" style="max-width: 130px;">
-                        <option value="">Semua Kondisi</option>
+
+                    <!-- Dropdown Status (Synced) -->
+                    <select id="filterStatusSelect" class="form-select form-select-sm d-none d-sm-block" style="max-width: 125px;">
+                        <option value="" {{ empty($status) ? 'selected' : '' }}>Semua Kondisi</option>
                         <option value="normal" {{ ($status ?? '') == 'normal' ? 'selected' : '' }}>Normal</option>
                         <option value="rusak" {{ ($status ?? '') == 'rusak' ? 'selected' : '' }}>Rusak</option>
                     </select>
-                    <button type="submit" class="btn btn-outline-secondary btn-sm px-2.5">Filter</button>
-                </form>
+
+                    <form action="{{ route('ont-keluar.index') }}" method="GET" id="formFilterKeluar" class="d-flex gap-1 align-items-center m-0">
+                        <input type="hidden" name="status" id="filterStatusInput" value="{{ $status ?? '' }}">
+                        <div class="input-group input-group-sm" style="max-width: 200px;">
+                            <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-search"></i></span>
+                            <input type="text" name="search" id="filterSearchInput" class="form-control border-start-0" placeholder="Cari SN atau teknisi..." value="{{ $search ?? '' }}">
+                        </div>
+                        @if($search || $status)
+                            <button type="button" id="btnResetFilterKeluar" class="btn btn-light btn-sm text-muted px-2 border" title="Reset Filter">
+                                <i class="bi bi-x-circle"></i>
+                            </button>
+                        @endif
+                    </form>
+                </div>
             </div>
         </div>
     </div>
@@ -336,6 +437,37 @@
 </div>
 @endsection
 
+@push('styles')
+<style>
+    .btn-status-pill {
+        font-size: 0.78rem;
+        font-weight: 500;
+        padding: 0.28rem 0.68rem;
+        border-color: #dee2e6;
+        color: #475569;
+        background-color: #fff;
+        transition: all 0.15s ease-in-out;
+    }
+    .btn-status-pill:hover {
+        background-color: #f1f5f9;
+        border-color: #cbd5e1;
+        color: #0f172a;
+    }
+    .btn-status-pill.active {
+        background-color: var(--theme-red, #b91c1c) !important;
+        border-color: var(--theme-red, #b91c1c) !important;
+        color: #ffffff !important;
+        font-weight: 600;
+        box-shadow: 0 1px 3px rgba(185, 28, 28, 0.25);
+    }
+    .table-loading-fade {
+        opacity: 0.45;
+        pointer-events: none;
+        transition: opacity 0.15s ease;
+    }
+</style>
+@endpush
+
 @push('scripts')
 <script>
     function openEditModal(id, sn, teknisi, keterangan, catatan) {
@@ -368,5 +500,398 @@
             bsAlert.close();
         });
     }, 4000);
+
+    // ==============================================================
+    // AJAX FILTERING ONT KELUAR (LANGSUNG FILTER & HALAMAN TIDAK NAIK)
+    // ==============================================================
+    function initTabelKeluarFilter() {
+        const tableCard = document.getElementById('tabel-rekap-keluar');
+        if (!tableCard) return;
+
+        // Klik Pill Kondisi (Normal, Rusak, Semua) -> langsung filter
+        const pills = tableCard.querySelectorAll('.btn-status-pill');
+        pills.forEach(pill => {
+            pill.addEventListener('click', function (e) {
+                e.preventDefault();
+                const status = this.getAttribute('data-status') || '';
+                const search = document.getElementById('filterSearchInput')?.value || '';
+                applyKeluarFilter({ status: status, search: search });
+            });
+        });
+
+        // Pilihan Dropdown Kondisi -> langsung filter saat diganti
+        const statusSelect = document.getElementById('filterStatusSelect');
+        if (statusSelect) {
+            statusSelect.addEventListener('change', function () {
+                const status = this.value;
+                const search = document.getElementById('filterSearchInput')?.value || '';
+                applyKeluarFilter({ status: status, search: search });
+            });
+        }
+
+        // Form Submit Search (Enter pada input pencarian)
+        const formFilter = document.getElementById('formFilterKeluar');
+        if (formFilter) {
+            formFilter.addEventListener('submit', function (e) {
+                e.preventDefault();
+                const status = document.getElementById('filterStatusInput')?.value || 
+                               document.getElementById('filterStatusSelect')?.value || '';
+                const search = document.getElementById('filterSearchInput')?.value || '';
+                applyKeluarFilter({ status: status, search: search });
+            });
+        }
+
+        // Tombol Reset Filter
+        const resetBtn = document.getElementById('btnResetFilterKeluar');
+        if (resetBtn) {
+            resetBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                applyKeluarFilter({ status: '', search: '' });
+            });
+        }
+
+        // Intercept Pagination Links agar halaman tidak reload & tidak loncat ke atas
+        const paginationLinks = tableCard.querySelectorAll('.pagination a');
+        paginationLinks.forEach(link => {
+            link.addEventListener('click', function (e) {
+                e.preventDefault();
+                if (this.href) {
+                    applyKeluarFilterFromUrl(this.href);
+                }
+            });
+        });
+    }
+
+    function applyKeluarFilter(params) {
+        const baseUrl = "{{ route('ont-keluar.index') }}";
+        const url = new URL(baseUrl, window.location.origin);
+
+        if (params.status) {
+            url.searchParams.set('status', params.status);
+        }
+        if (params.search) {
+            url.searchParams.set('search', params.search);
+        }
+
+        applyKeluarFilterFromUrl(url.toString());
+    }
+
+    function applyKeluarFilterFromUrl(fullUrl) {
+        const tableCard = document.getElementById('tabel-rekap-keluar');
+        if (!tableCard) {
+            window.location.href = fullUrl;
+            return;
+        }
+
+        // Simpan posisi scroll sebelum AJAX agar halaman TIDAK LOMPAT KE ATAS
+        const currentScrollY = window.scrollY;
+
+        const tableContent = tableCard.querySelector('.table-responsive') || tableCard;
+        tableContent.classList.add('table-loading-fade');
+
+        fetch(fullUrl, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => {
+            if (!response.ok) throw new Error('Network error');
+            return response.text();
+        })
+        .then(html => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const newCard = doc.getElementById('tabel-rekap-keluar');
+
+            if (newCard) {
+                tableCard.innerHTML = newCard.innerHTML;
+                window.history.pushState(null, '', fullUrl);
+
+                // Pertahankan posisi scroll user tanpa berpindah
+                window.scrollTo({ top: currentScrollY, behavior: 'instant' });
+
+                // Re-bind event listener pada elemen baru
+                initTabelKeluarFilter();
+            } else {
+                window.location.href = fullUrl;
+            }
+        })
+        .catch(err => {
+            console.error('Filter error:', err);
+            window.location.href = fullUrl;
+        })
+        .finally(() => {
+            tableContent.classList.remove('table-loading-fade');
+        });
+    }
+
+    // Tangani tombol browser back / forward
+    window.addEventListener('popstate', function () {
+        applyKeluarFilterFromUrl(window.location.href);
+    });
+
+    // Inisialisasi saat load pertama kali
+    document.addEventListener('DOMContentLoaded', function () {
+        initTabelKeluarFilter();
+
+        const snInput = document.getElementById('serial_number');
+        const snCounter = document.getElementById('sn_counter');
+        const filterBrandSelect = document.getElementById('filter_brand_select');
+        const searchSnInput = document.getElementById('search_sn_input');
+        const btnClearSearch = document.getElementById('btn_clear_sn_search');
+        const chkItems = document.querySelectorAll('.chk-ont-item');
+        const selectedPillsContainer = document.getElementById('selected_pills_container');
+        const emptySelectedHint = document.getElementById('empty_selected_hint');
+        const selectedTotalCount = document.getElementById('selected_total_count');
+        const btnClearAllSelected = document.getElementById('btn_clear_all_selected');
+        const noOntFoundMsg = document.getElementById('no_ont_found_msg');
+
+        // Set penampung SN terpilih
+        let selectedSns = new Set();
+        // Map untuk menyimpan brand tiap SN
+        const snBrandMap = {};
+        chkItems.forEach(chk => {
+            const sn = chk.value.toUpperCase();
+            const brand = chk.getAttribute('data-brand') || 'ONT';
+            snBrandMap[sn] = brand;
+        });
+
+        // 1. Fungsi sinkronisasi dari Set ke Hidden Input & Pills & Checkbox States
+        function updateUIFromSelection() {
+            const currentList = Array.from(selectedSns);
+
+            if (selectedTotalCount) selectedTotalCount.textContent = currentList.length;
+            if (snCounter) snCounter.textContent = currentList.length + ' Unit';
+
+            // Sync Hidden Input
+            if (snInput) {
+                snInput.value = currentList.join('\n');
+            }
+
+            // Sync Checkbox States
+            chkItems.forEach(chk => {
+                const sn = chk.value.toUpperCase();
+                const isChecked = selectedSns.has(sn);
+                chk.checked = isChecked;
+                const label = chk.closest('.ont-item-label');
+                if (label) {
+                    if (isChecked) {
+                        label.classList.add('border-danger', 'bg-danger-subtle', 'shadow-2xs');
+                    } else {
+                        label.classList.remove('border-danger', 'bg-danger-subtle', 'shadow-2xs');
+                    }
+                }
+            });
+
+            // Render Pills Ringkasan
+            if (selectedPillsContainer) {
+                selectedPillsContainer.innerHTML = '';
+                if (currentList.length === 0) {
+                    if (emptySelectedHint) emptySelectedHint.style.display = 'inline';
+                    if (btnClearAllSelected) btnClearAllSelected.style.display = 'none';
+                } else {
+                    if (emptySelectedHint) emptySelectedHint.style.display = 'none';
+                    if (btnClearAllSelected) btnClearAllSelected.style.display = 'inline';
+
+                    currentList.forEach(sn => {
+                        const brand = snBrandMap[sn] || 'ONT';
+                        const pill = document.createElement('span');
+                        pill.className = 'badge bg-white text-dark border shadow-2xs d-inline-flex align-items-center gap-1.5 font-monospace px-2.5 py-1.5 rounded-2';
+                        pill.style.fontSize = '0.75rem';
+                        pill.innerHTML = `<span class="badge bg-secondary-subtle text-secondary py-0.5 px-1.5 me-0.5 rounded-1" style="font-size:0.68rem;">${brand}</span>${sn} <button type="button" class="btn-close ms-1 btn-remove-pill" data-sn="${sn}" style="font-size:0.58rem;" aria-label="Remove"></button>`;
+                        selectedPillsContainer.appendChild(pill);
+                    });
+                }
+            }
+        }
+
+        // 2. Event: Checkbox Clicked
+        chkItems.forEach(chk => {
+            chk.addEventListener('change', function () {
+                const sn = this.value.toUpperCase();
+                if (this.checked) {
+                    selectedSns.add(sn);
+                } else {
+                    selectedSns.delete(sn);
+                }
+                updateUIFromSelection();
+            });
+        });
+
+        // 3. Inisialisasi awal jika ada value lama (misal dari old input)
+        if (snInput && snInput.value.trim().length > 0) {
+            const items = snInput.value.split(/[\r\n,;\s]+/).map(s => s.trim().toUpperCase()).filter(s => s.length > 0);
+            selectedSns = new Set(items);
+            updateUIFromSelection();
+        }
+
+        // 4. Event: Klik tombol hapus (x) di Pill Ringkasan
+        if (selectedPillsContainer) {
+            selectedPillsContainer.addEventListener('click', function (e) {
+                const removeBtn = e.target.closest('.btn-remove-pill');
+                if (removeBtn) {
+                    const sn = removeBtn.getAttribute('data-sn');
+                    if (sn) {
+                        selectedSns.delete(sn);
+                        updateUIFromSelection();
+                    }
+                }
+            });
+        }
+
+        // 5. Event: Reset Semua Pilihan
+        if (btnClearAllSelected) {
+            btnClearAllSelected.addEventListener('click', function () {
+                selectedSns.clear();
+                updateUIFromSelection();
+            });
+        }
+
+        // Form Submit Validation (Harap pilih minimal 1 checkbox)
+        const formOntKeluar = document.getElementById('formOntKeluar');
+        if (formOntKeluar) {
+            formOntKeluar.addEventListener('submit', function (e) {
+                if (selectedSns.size === 0) {
+                    e.preventDefault();
+                    alert('Harap pilih setidaknya 1 unit ONT dengan mencentang checkbox.');
+                }
+            });
+        }
+
+        // 6. Pagination Client-Side (Maksimal 5 ONT per Halaman)
+        let currentOntPage = 1;
+        const ontPageSize = 5;
+        let matchingOntWrappers = [];
+
+        function renderOntPagination() {
+            const selectedBrand = filterBrandSelect ? filterBrandSelect.value : '';
+            const searchKeyword = searchSnInput ? searchSnInput.value.trim().toUpperCase() : '';
+
+            matchingOntWrappers = [];
+            const allWrappers = document.querySelectorAll('.ont-item-wrapper');
+            allWrappers.forEach(wrapper => {
+                const itemBrand = wrapper.getAttribute('data-brand') || '';
+                const itemSn = wrapper.getAttribute('data-sn') || '';
+
+                const matchesBrand = !selectedBrand || itemBrand === selectedBrand;
+                const matchesSearch = !searchKeyword || itemSn.includes(searchKeyword);
+
+                if (matchesBrand && matchesSearch) {
+                    matchingOntWrappers.push(wrapper);
+                } else {
+                    wrapper.classList.add('d-none');
+                }
+            });
+
+            const totalMatching = matchingOntWrappers.length;
+            const totalPages = Math.max(1, Math.ceil(totalMatching / ontPageSize));
+
+            if (currentOntPage > totalPages) {
+                currentOntPage = 1;
+            }
+
+            const startIndex = (currentOntPage - 1) * ontPageSize;
+            const endIndex = Math.min(startIndex + ontPageSize, totalMatching);
+
+            matchingOntWrappers.forEach((wrapper, idx) => {
+                if (idx >= startIndex && idx < endIndex) {
+                    wrapper.classList.remove('d-none');
+                } else {
+                    wrapper.classList.add('d-none');
+                }
+            });
+
+            if (noOntFoundMsg) {
+                if (totalMatching === 0 && allWrappers.length > 0) {
+                    noOntFoundMsg.classList.remove('d-none');
+                } else {
+                    noOntFoundMsg.classList.add('d-none');
+                }
+            }
+
+            const pageInfo = document.getElementById('ont_page_info');
+            const pageIndicator = document.getElementById('ont_page_indicator');
+            const btnPrev = document.getElementById('btn_ont_prev_page');
+            const btnNext = document.getElementById('btn_ont_next_page');
+
+            if (pageInfo) {
+                if (totalMatching === 0) {
+                    pageInfo.textContent = 'Tidak ada unit';
+                } else {
+                    pageInfo.textContent = `Menampilkan ${startIndex + 1}-${endIndex} dari ${totalMatching} unit`;
+                }
+            }
+
+            if (pageIndicator) {
+                pageIndicator.textContent = `${currentOntPage} / ${totalPages}`;
+            }
+
+            if (btnPrev) {
+                btnPrev.disabled = (currentOntPage <= 1);
+            }
+
+            if (btnNext) {
+                btnNext.disabled = (currentOntPage >= totalPages);
+            }
+        }
+
+        const btnPrevPage = document.getElementById('btn_ont_prev_page');
+        const btnNextPage = document.getElementById('btn_ont_next_page');
+
+        if (btnPrevPage) {
+            btnPrevPage.addEventListener('click', function () {
+                if (currentOntPage > 1) {
+                    currentOntPage--;
+                    renderOntPagination();
+                }
+            });
+        }
+
+        if (btnNextPage) {
+            btnNextPage.addEventListener('click', function () {
+                const totalPages = Math.ceil(matchingOntWrappers.length / ontPageSize);
+                if (currentOntPage < totalPages) {
+                    currentOntPage++;
+                    renderOntPagination();
+                }
+            });
+        }
+
+        if (filterBrandSelect) {
+            filterBrandSelect.addEventListener('change', function () {
+                currentOntPage = 1;
+                renderOntPagination();
+            });
+        }
+
+        if (searchSnInput) {
+            searchSnInput.addEventListener('input', function () {
+                currentOntPage = 1;
+                renderOntPagination();
+            });
+        }
+
+        if (btnClearSearch) {
+            btnClearSearch.addEventListener('click', function () {
+                if (searchSnInput) {
+                    searchSnInput.value = '';
+                    currentOntPage = 1;
+                    renderOntPagination();
+                }
+            });
+        }
+
+        // Inisialisasi awal pagination
+        renderOntPagination();
+
+        // Jika halaman dibuka langsung via URL berparameter filter / pagination, scroll ke tabel
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('status') || urlParams.has('search') || urlParams.has('page') || window.location.hash === '#tabel-rekap-keluar') {
+            const tableElement = document.getElementById('tabel-rekap-keluar');
+            if (tableElement) {
+                tableElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+    });
 </script>
 @endpush

@@ -1,8 +1,14 @@
 <?php
 
-require __DIR__ . '/vendor/autoload.php';
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
-$spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+require __DIR__.'/vendor/autoload.php';
+
+$spreadsheet = new Spreadsheet;
 $sheet = $spreadsheet->getActiveSheet();
 $sheet->setTitle('Laporan WO');
 
@@ -80,27 +86,27 @@ $sheet->fromArray($rows, null, 'A2');
 $headerStyle = [
     'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
     'fill' => [
-        'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+        'fillType' => Fill::FILL_SOLID,
         'startColor' => ['rgb' => 'B91C1C'],
     ],
     'alignment' => [
-        'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
-        'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
+        'horizontal' => Alignment::HORIZONTAL_CENTER,
+        'vertical' => Alignment::VERTICAL_CENTER,
     ],
 ];
 $sheet->getStyle('A1:J1')->applyFromArray($headerStyle);
 $sheet->getRowDimension(1)->setRowHeight(26);
 
 // Format teks untuk kolom agar tidak diformat angka otomatis oleh Excel
-$sheet->getStyle('A2:E5')->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_TEXT);
+$sheet->getStyle('A2:E5')->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_TEXT);
 
 // Set auto column width
 foreach (range('A', 'J') as $col) {
     $sheet->getColumnDimension($col)->setAutoSize(true);
 }
 
-$writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
-$target = __DIR__ . '/contoh_laporan_wo_valid.xlsx';
+$writer = new Xlsx($spreadsheet);
+$target = __DIR__.'/contoh_laporan_wo_valid.xlsx';
 $writer->save($target);
 
 echo "File berhasil dibuat: {$target}\n";

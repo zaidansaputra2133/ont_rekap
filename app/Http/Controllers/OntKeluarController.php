@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\OntKeluar;
 use App\Models\OntMasuk;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class OntKeluarController extends Controller
 {
@@ -27,10 +28,20 @@ class OntKeluarController extends Controller
 
         // Ambil unit ONT di gudang yang BELUM PERNAH keluar (stok yang tersedia untuk diserahkan)
         $availableOnts = OntMasuk::whereNotIn('serial_number', function ($query) {
-                $query->select('serial_number')->from('ont_keluars');
-            })
+            $query->select('serial_number')->from('ont_keluars');
+        })
             ->orderBy('created_at', 'desc')
             ->get(['serial_number', 'brand', 'tanggal_masuk']);
+
+        // Pastikan brand terisi (auto-detect jika di DB belum ada brand)
+        foreach ($availableOnts as $ont) {
+            if (empty($ont->brand)) {
+                $ont->brand = OntMasuk::detectBrand($ont->serial_number) ?? 'Lainnya';
+            }
+        }
+
+        // Ambil daftar brand unik yang tersedia di stok gudang
+        $availableBrands = $availableOnts->pluck('brand')->filter()->unique()->values()->all();
 
         // Ambil daftar nama teknisi yang sudah ada untuk saran pengetikan cepat
         $daftarTeknisi = OntKeluar::select('nama_teknisi')
@@ -39,53 +50,90 @@ class OntKeluarController extends Controller
             ->orderBy('nama_teknisi')
             ->pluck('nama_teknisi');
 
-        return view('ont-keluar.index', compact('items', 'totalKeluar', 'search', 'status', 'availableOnts', 'daftarTeknisi'));
+        return view('ont-keluar.index', compact('items', 'totalKeluar', 'search', 'status', 'availableOnts', 'availableBrands', 'daftarTeknisi'));
     }
 
     /**
-     * Catat penyerahan ONT ke teknisi.
+     * Catat penyerahan 1 atau lebih unit ONT sekaligus ke teknisi.
      * Validasi: SN wajib ada di ont_masuks & belum pernah keluar.
      */
     public function store(Request $request)
     {
         $request->validate([
-            'serial_number' => ['required', 'string', 'max:100'],
-            'nama_teknisi'  => ['required', 'string', 'max:150'],
-            'tanggal_keluar'=> ['required', 'date'],
+            'nama_teknisi' => ['required', 'string', 'max:150'],
+            'tanggal_keluar' => ['required', 'date'],
+            'serial_number' => ['required_without:serial_numbers'],
         ], [
-            'serial_number.required'  => 'Serial Number wajib diisi.',
-            'nama_teknisi.required'   => 'Nama teknisi wajib diisi.',
+            'nama_teknisi.required' => 'Nama teknisi wajib diisi.',
             'tanggal_keluar.required' => 'Tanggal penyerahan wajib diisi.',
+            'serial_number.required_without' => 'Serial Number wajib diisi.',
         ]);
 
-        $sn = strtoupper(trim($request->serial_number));
+        $rawInput = $request->input('serial_number') ?? $request->input('serial_numbers');
+
+        if (is_array($rawInput)) {
+            $snList = $rawInput;
+        } else {
+            // Split berdasarkan baris baru, koma, titik koma, atau spasi
+            $snList = preg_split('/[\r\n,;\s]+/', (string) $rawInput, -1, PREG_SPLIT_NO_EMPTY);
+        }
+
+        // Clean & normalize (uppercase, trim, unique, non-empty)
+        $snList = array_values(array_unique(array_filter(array_map(function ($sn) {
+            return strtoupper(trim($sn));
+        }, $snList))));
+
+        if (empty($snList)) {
+            return back()
+                ->withInput()
+                ->withErrors(['serial_number' => 'Serial Number wajib diisi. Masukkan setidaknya 1 Serial Number.']);
+        }
 
         // BR-01: SN harus ada di ont_masuks
-        $ontMasuk = OntMasuk::where('serial_number', $sn)->first();
-        if (!$ontMasuk) {
-            return back()
-                ->withInput()
-                ->withErrors(['serial_number' => "Serial Number {$sn} tidak ditemukan di data gudang. Pastikan unit sudah diinput di ONT Masuk."]);
-        }
+        $validMasukSns = OntMasuk::whereIn('serial_number', $snList)->pluck('serial_number')->toArray();
+        $invalidMasuk = array_diff($snList, $validMasukSns);
 
         // BR-02: Satu SN hanya boleh keluar satu kali
-        $sudahKeluar = OntKeluar::where('serial_number', $sn)->exists();
-        if ($sudahKeluar) {
-            return back()
-                ->withInput()
-                ->withErrors(['serial_number' => "Serial Number {$sn} sudah pernah tercatat keluar sebelumnya."]);
+        $sudahKeluarSns = OntKeluar::whereIn('serial_number', $snList)->pluck('serial_number')->toArray();
+        $alreadyIssued = array_intersect($snList, $sudahKeluarSns);
+
+        $errorMessages = [];
+        if (! empty($invalidMasuk)) {
+            $errorMessages[] = 'SN tidak ditemukan di stok gudang (ONT Masuk): '.implode(', ', $invalidMasuk).'.';
+        }
+        if (! empty($alreadyIssued)) {
+            $errorMessages[] = 'SN sudah pernah tercatat keluar sebelumnya: '.implode(', ', $alreadyIssued).'.';
         }
 
-        OntKeluar::create([
-            'serial_number'  => $sn,
-            'nama_teknisi'   => trim($request->nama_teknisi),
-            'tanggal_keluar' => $request->tanggal_keluar,
-            'keterangan'     => null,
-            'catatan'        => null,
-        ]);
+        if (! empty($errorMessages)) {
+            return back()
+                ->withInput()
+                ->withErrors(['serial_number' => implode(' ', $errorMessages)]);
+        }
 
-        return redirect()->route('ont-keluar.index')
-            ->with('success', "Penyerahan unit {$sn} ke {$request->nama_teknisi} berhasil dicatat.");
+        DB::transaction(function () use ($snList, $request) {
+            $namaTeknisi = trim($request->nama_teknisi);
+            $tanggalKeluar = $request->tanggal_keluar;
+
+            foreach ($snList as $sn) {
+                OntKeluar::create([
+                    'serial_number' => $sn,
+                    'nama_teknisi' => $namaTeknisi,
+                    'tanggal_keluar' => $tanggalKeluar,
+                    'keterangan' => null,
+                    'catatan' => null,
+                ]);
+            }
+        });
+
+        $count = count($snList);
+        $snSummary = $count <= 3 ? implode(', ', $snList) : implode(', ', array_slice($snList, 0, 3)).' (+ '.($count - 3).' unit lainnya)';
+
+        $successMsg = $count === 1
+            ? "Penyerahan unit {$snList[0]} ke {$request->nama_teknisi} berhasil dicatat."
+            : "Penyerahan {$count} unit ONT ({$snSummary}) ke {$request->nama_teknisi} berhasil dicatat.";
+
+        return redirect()->route('ont-keluar.index')->with('success', $successMsg);
     }
 
     /**
@@ -94,19 +142,19 @@ class OntKeluarController extends Controller
     public function updateStatus(Request $request)
     {
         $request->validate([
-            'id'          => ['required', 'exists:ont_keluars,id'],
-            'keterangan'  => ['nullable', 'in:,Rusak'],
-            'catatan'     => ['nullable', 'string', 'max:2000'],
+            'id' => ['required', 'exists:ont_keluars,id'],
+            'keterangan' => ['nullable', 'in:,Rusak'],
+            'catatan' => ['nullable', 'string', 'max:2000'],
         ]);
 
         $ontKeluar = OntKeluar::findOrFail($request->id);
 
         $keterangan = $request->keterangan === 'Rusak' ? 'Rusak' : null;
-        $catatan    = $keterangan === 'Rusak' ? $request->catatan : null;
+        $catatan = $keterangan === 'Rusak' ? $request->catatan : null;
 
         $ontKeluar->update([
             'keterangan' => $keterangan,
-            'catatan'    => $catatan,
+            'catatan' => $catatan,
         ]);
 
         return redirect()->route('ont-keluar.index')

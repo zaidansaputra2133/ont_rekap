@@ -20,7 +20,7 @@ class DatabaseSeeder extends Seeder
         User::firstOrCreate(
             ['email' => 'admin@simONT.local'],
             [
-                'name'     => 'Administrator',
+                'name' => 'Administrator',
                 'password' => Hash::make('admin123*#'),
             ]
         );

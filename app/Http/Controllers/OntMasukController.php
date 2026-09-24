@@ -2,10 +2,15 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\OntMasuk;
 use App\Imports\OntMasukImport;
+use App\Models\OntMasuk;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class OntMasukController extends Controller
 {
@@ -15,7 +20,7 @@ class OntMasukController extends Controller
     public function index(Request $request)
     {
         $search = $request->input('search');
-        $brand  = $request->input('brand');
+        $brand = $request->input('brand');
 
         $items = OntMasuk::query()
             ->search($search)
@@ -37,10 +42,10 @@ class OntMasukController extends Controller
         $request->validate([
             'serial_number' => ['required', 'string', 'max:100', 'unique:ont_masuks,serial_number'],
             'tanggal_masuk' => ['required', 'date'],
-            'brand'         => ['nullable', 'string', 'max:50'],
+            'brand' => ['nullable', 'string', 'max:50'],
         ], [
             'serial_number.required' => 'Serial Number wajib diisi.',
-            'serial_number.unique'   => 'Serial Number ini sudah terdaftar di sistem.',
+            'serial_number.unique' => 'Serial Number ini sudah terdaftar di sistem.',
             'tanggal_masuk.required' => 'Tanggal penerimaan wajib diisi.',
         ]);
 
@@ -49,12 +54,12 @@ class OntMasukController extends Controller
 
         OntMasuk::create([
             'serial_number' => $sn,
-            'brand'         => $brand ?: null,
+            'brand' => $brand ?: null,
             'tanggal_masuk' => $request->tanggal_masuk,
         ]);
 
         return redirect()->route('ont-masuk.index')
-            ->with('success', "Unit ONT {$sn}" . ($brand ? " ({$brand})" : '') . " berhasil ditambahkan ke inventaris.");
+            ->with('success', "Unit ONT {$sn}".($brand ? " ({$brand})" : '').' berhasil ditambahkan ke inventaris.');
     }
 
     /**
@@ -66,15 +71,15 @@ class OntMasukController extends Controller
             'file' => ['required', 'file', 'mimes:xlsx,xls,csv', 'max:10240'],
         ], [
             'file.required' => 'Pilih file Excel/CSV terlebih dahulu.',
-            'file.mimes'    => 'Format file harus .xlsx, .xls, atau .csv.',
-            'file.max'      => 'Ukuran file maksimal 10 MB.',
+            'file.mimes' => 'Format file harus .xlsx, .xls, atau .csv.',
+            'file.max' => 'Ukuran file maksimal 10 MB.',
         ]);
 
-        $import = new OntMasukImport();
+        $import = new OntMasukImport;
         Excel::import($import, $request->file('file'));
 
         $imported = $import->importedCount();
-        $skipped  = $import->skippedCount();
+        $skipped = $import->skippedCount();
 
         $message = "Import selesai. {$imported} unit berhasil ditambahkan.";
         if ($skipped > 0) {
@@ -89,7 +94,7 @@ class OntMasukController extends Controller
      */
     public function downloadTemplate()
     {
-        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Template ONT Masuk');
 
@@ -109,30 +114,58 @@ class OntMasukController extends Controller
         $headerStyle = [
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
             'fill' => [
-                'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                'fillType' => Fill::FILL_SOLID,
                 'startColor' => ['rgb' => 'B91C1C'],
             ],
             'alignment' => [
-                'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
-                'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
             ],
         ];
         $sheet->getStyle('A1:C1')->applyFromArray($headerStyle);
         $sheet->getRowDimension(1)->setRowHeight(25);
 
         // Pastikan kolom serial_number terbaca sebagai text
-        $sheet->getStyle('A2:A100')->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_TEXT);
+        $sheet->getStyle('A2:A100')->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_TEXT);
 
         foreach (range('A', 'C') as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
 
         return response()->streamDownload(function () use ($spreadsheet) {
-            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+            $writer = new Xlsx($spreadsheet);
             $writer->save('php://output');
         }, 'template_ont_masuk.xlsx', [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ]);
+    }
+
+    /**
+     * Update data ONT Masuk (edit manual).
+     */
+    public function update(Request $request, OntMasuk $ontMasuk)
+    {
+        $request->validate([
+            'serial_number' => ['required', 'string', 'max:100', 'unique:ont_masuks,serial_number,'.$ontMasuk->id],
+            'tanggal_masuk' => ['required', 'date'],
+            'brand' => ['nullable', 'string', 'max:50'],
+        ], [
+            'serial_number.required' => 'Serial Number wajib diisi.',
+            'serial_number.unique' => 'Serial Number ini sudah terdaftar di sistem.',
+            'tanggal_masuk.required' => 'Tanggal penerimaan wajib diisi.',
+        ]);
+
+        $sn = strtoupper(trim($request->serial_number));
+        $brand = $request->brand ?: OntMasuk::detectBrand($sn);
+
+        $ontMasuk->update([
+            'serial_number' => $sn,
+            'brand' => $brand ?: null,
+            'tanggal_masuk' => $request->tanggal_masuk,
+        ]);
+
+        return redirect()->route('ont-masuk.index')
+            ->with('success', "Unit ONT {$sn} berhasil diperbarui.");
     }
 
     /**
@@ -147,4 +180,3 @@ class OntMasukController extends Controller
             ->with('success', "Unit ONT dengan SN {$sn} berhasil dihapus.");
     }
 }
-

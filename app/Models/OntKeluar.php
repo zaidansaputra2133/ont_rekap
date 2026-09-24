@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class OntKeluar extends Model
@@ -43,11 +43,13 @@ class OntKeluar extends Model
      */
     public function scopeSearch(Builder $query, ?string $keyword): Builder
     {
-        if (!$keyword) return $query;
+        if (! $keyword) {
+            return $query;
+        }
 
         return $query->where(function ($q) use ($keyword) {
             $q->where('serial_number', 'like', "%{$keyword}%")
-              ->orWhere('nama_teknisi', 'like', "%{$keyword}%");
+                ->orWhere('nama_teknisi', 'like', "%{$keyword}%");
         });
     }
 
@@ -56,7 +58,9 @@ class OntKeluar extends Model
      */
     public function scopeFilterStatus(Builder $query, ?string $status): Builder
     {
-        if (!$status) return $query;
+        if (! $status) {
+            return $query;
+        }
 
         if ($status === 'rusak') {
             return $query->where('keterangan', 'Rusak');

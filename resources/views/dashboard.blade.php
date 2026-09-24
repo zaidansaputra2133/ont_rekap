@@ -2,343 +2,537 @@
 
 @section('title', 'Dashboard')
 
+@push('styles')
+<style>
+    .chart-mode-btn {
+        font-size: 0.78rem;
+        font-weight: 500;
+        padding: 0.3rem 0.7rem;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+        color: #4b5563;
+        transition: all 0.15s ease;
+    }
+    .chart-mode-btn:hover {
+        background: #fdf2f2;
+        color: #c0392b;
+        border-color: #f5c6c6;
+    }
+    .chart-mode-btn.active {
+        background: #c0392b;
+        color: #fff;
+        border-color: #c0392b;
+    }
+    .chart-mode-btn:first-child { border-radius: 7px 0 0 7px; }
+    .chart-mode-btn:last-child  { border-radius: 0 7px 7px 0; }
+
+    .chart-filter-checkbox {
+        cursor: pointer;
+        width: 1.15em;
+        height: 1.15em;
+    }
+    .chart-filter-checkbox.masuk:checked {
+        background-color: #2563eb;
+        border-color: #2563eb;
+    }
+    .chart-filter-checkbox.keluar:checked {
+        background-color: #c0392b;
+        border-color: #c0392b;
+    }
+    .chart-bar-indicator {
+        width: 12px;
+        height: 12px;
+        border-radius: 3px;
+        display: inline-block;
+    }
+    .chart-checkbox-label {
+        font-size: 0.82rem;
+        cursor: pointer;
+        user-select: none;
+    }
+</style>
+@endpush
+
 @section('content')
-<!-- Header & Quick Actions -->
-<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
-    <div>
-        <h4 class="fw-bold text-dark mb-1">Rekapitulasi Persediaan & Performa Teknisi</h4>
-        <p class="text-muted small mb-0">Integrasi pemantauan stok gudang, distribusi penyerahan teknisi, dan status instalasi lapangan.</p>
-    </div>
-    <div class="d-flex flex-wrap gap-2">
-        <a href="{{ url('/ont-masuk') }}" class="btn btn-outline-theme btn-sm rounded-2 px-3">
-            <i class="bi bi-box-arrow-in-down me-1"></i> ONT Masuk
-        </a>
-        <a href="{{ url('/ont-keluar') }}" class="btn btn-outline-theme btn-sm rounded-2 px-3">
-            <i class="bi bi-box-arrow-up-right me-1"></i> Penyerahan Unit
-        </a>
-        <a href="{{ url('/reporting-wo') }}" class="btn btn-custom-primary btn-sm rounded-2 px-3">
-            <i class="bi bi-file-earmark-spreadsheet me-1"></i> Upload Laporan WO
-        </a>
-    </div>
+
+{{-- Page Heading --}}
+<div class="mb-4">
+    <h4 class="fw-bold mb-0" style="font-size: 1.45rem; color: #1a1d23; letter-spacing: -0.02em;">Dashboard</h4>
+    <p class="text-muted mb-0" style="font-size: 0.83rem;">Rekap stok & performa instalasi lapangan</p>
 </div>
 
-<!-- 3 Metric Cards: Installed, Not Installed, Unit Rusak -->
+{{-- ── Metric Cards ─────────────────────────────────────────────────────────── --}}
 <div class="row g-3 mb-4">
-    <!-- Card 1: Total INSTALLED -->
-    <div class="col-12 col-md-4">
-        <div class="card card-custom metric-card h-100">
-            <div class="d-flex justify-content-between align-items-center mb-1">
-                <span class="text-muted small fw-medium" style="font-size: 0.76rem; letter-spacing: 0.02em;">INSTALLED</span>
-                <span class="badge badge-soft-success px-2 py-0.5 rounded-2" style="font-size: 0.72rem;">Work Order Selesai</span>
+
+    {{-- INSTALLED --}}
+    <div class="col-6 col-xl-3">
+        <div class="card-custom metric-card h-100">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <span class="fw-700" style="font-size: 0.72rem; letter-spacing: 0.06em; color: #16a34a;">INSTALLED</span>
+                <span style="width:10px;height:10px;border-radius:50%;background:#16a34a;display:inline-block;margin-top:2px;"></span>
             </div>
-            <div class="py-2.5 my-1 d-flex align-items-baseline gap-1.5">
-                <span class="fs-1 fw-bold text-success lh-1">{{ number_format($totalInstalled ?? 0) }}</span>
-                <span class="text-muted small">unit</span>
+            <div class="mb-1" style="font-size: 2.4rem; font-weight: 800; color: #16a34a; line-height: 1; letter-spacing: -0.03em;">
+                {{ number_format($totalInstalled ?? 0) }}
             </div>
-            <div class="pt-2 mt-1 border-top d-flex justify-content-between align-items-center text-muted" style="font-size: 0.78rem;">
-                <span>Terpasang di pelanggan:</span>
-                <span class="fw-semibold text-success">
-                    {{ $totalKeluar > 0 ? round((($totalInstalled ?? 0) / $totalKeluar) * 100, 1) : 0 }}%
-                </span>
-            </div>
+            <div style="font-size: 0.75rem; color: #94a3b8;">Work Order Selesai</div>
         </div>
     </div>
 
-    <!-- Card 2: Total NOT INSTALLED -->
-    <div class="col-12 col-md-4">
-        <div class="card card-custom metric-card h-100">
-            <div class="d-flex justify-content-between align-items-center mb-1">
-                <span class="text-muted small fw-medium" style="font-size: 0.76rem; letter-spacing: 0.02em;">NOT INSTALLED</span>
-                <span class="badge badge-soft-secondary px-2 py-0.5 rounded-2" style="font-size: 0.72rem;">Unit di Teknisi</span>
+    {{-- NOT INSTALLED --}}
+    <div class="col-6 col-xl-3">
+        <div class="card-custom metric-card h-100">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <span class="fw-700" style="font-size: 0.72rem; letter-spacing: 0.06em; color: #d97706;">NOT INSTALLED</span>
+                <span style="width:10px;height:10px;border-radius:50%;background:#f59e0b;display:inline-block;margin-top:2px;"></span>
             </div>
-            <div class="py-2.5 my-1 d-flex align-items-baseline gap-1.5">
-                <span class="fs-1 fw-bold text-dark lh-1">{{ number_format($totalNotInstalled ?? 0) }}</span>
-                <span class="text-muted small">unit</span>
+            <div class="mb-1" style="font-size: 2.4rem; font-weight: 800; color: #d97706; line-height: 1; letter-spacing: -0.03em;">
+                {{ number_format($totalNotInstalled ?? 0) }}
             </div>
-            <div class="pt-2 mt-1 border-top d-flex justify-content-between align-items-center text-muted" style="font-size: 0.78rem;">
-                <span>Belum ada WO selesai:</span>
-                <span class="fw-semibold text-dark">
-                    {{ $totalKeluar > 0 ? round((($totalNotInstalled ?? 0) / $totalKeluar) * 100, 1) : 0 }}%
-                </span>
-            </div>
+            <div style="font-size: 0.75rem; color: #94a3b8;">Unit di Lapangan</div>
         </div>
     </div>
 
-    <!-- Card 3: Total Rusak -->
-    <div class="col-12 col-md-4">
-        <div class="card card-custom metric-card h-100">
-            <div class="d-flex justify-content-between align-items-center mb-1">
-                <span class="text-muted small fw-medium" style="font-size: 0.76rem; letter-spacing: 0.02em;">UNIT RUSAK</span>
-                <span class="badge badge-theme-red px-2 py-0.5 rounded-2" style="font-size: 0.72rem;">Cacat / Retur</span>
+    {{-- RUSAK --}}
+    <div class="col-6 col-xl-3">
+        <div class="card-custom metric-card h-100">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <span class="fw-700" style="font-size: 0.72rem; letter-spacing: 0.06em; color: #c0392b;">RUSAK</span>
+                <span style="width:10px;height:10px;border-radius:50%;background:#c0392b;display:inline-block;margin-top:2px;"></span>
             </div>
-            <div class="py-2.5 my-1 d-flex align-items-baseline gap-1.5">
-                <span class="fs-1 fw-bold lh-1" style="color: var(--theme-red);">{{ number_format($totalRusak) }}</span>
-                <span class="text-muted small">unit</span>
+            <div class="mb-1" style="font-size: 2.4rem; font-weight: 800; color: #c0392b; line-height: 1; letter-spacing: -0.03em;">
+                {{ number_format($totalRusak ?? 0) }}
             </div>
-            <div class="pt-2 mt-1 border-top d-flex justify-content-between align-items-center text-muted" style="font-size: 0.78rem;">
-                <span>Rasio kerusakan lapangan:</span>
-                <span class="fw-semibold" style="color: var(--theme-red);">
-                    {{ round(($totalRusak / max($totalKeluar, 1)) * 100, 1) }}%
-                </span>
+            <div style="font-size: 0.75rem; color: #94a3b8;">Unit Retur / Cacat</div>
+        </div>
+    </div>
+
+    {{-- TOTAL --}}
+    <div class="col-6 col-xl-3">
+        <div class="card-custom metric-card h-100">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <span class="fw-700" style="font-size: 0.72rem; letter-spacing: 0.06em; color: #2563eb;">TOTAL</span>
+                <span style="width:10px;height:10px;border-radius:50%;background:#2563eb;display:inline-block;margin-top:2px;"></span>
+            </div>
+            <div class="mb-1" style="font-size: 2.4rem; font-weight: 800; color: #2563eb; line-height: 1; letter-spacing: -0.03em;">
+                {{ number_format($totalKeluar ?? 0) }}
+            </div>
+            <div style="font-size: 0.75rem; color: #94a3b8;">Total Dibawa</div>
+        </div>
+    </div>
+
+</div>
+
+{{-- ── Chart ONT Masuk vs Keluar ────────────────────────────────────────────── --}}
+<div class="card-custom mb-4">
+    {{-- Header --}}
+    <div class="p-3 d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-2"
+         style="border-bottom: 1px solid #e8eaed;">
+        <div>
+            <h6 class="fw-bold mb-0" style="font-size: 0.95rem; color: #1a1d23;">
+                <i class="bi bi-bar-chart-line me-1" style="color: #c0392b;"></i>
+                Tren ONT Masuk & Keluar
+            </h6>
+            <p class="mb-0" style="font-size: 0.74rem; color: #94a3b8;">Perbandingan stok masuk dan keluar gudang</p>
+        </div>
+
+        {{-- Controls --}}
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            {{-- Mode toggle --}}
+            <div class="btn-group btn-group-sm" role="group" id="chartModeGroup">
+                <button type="button" class="btn chart-mode-btn active" data-mode="daily">Harian</button>
+                <button type="button" class="btn chart-mode-btn" data-mode="weekly">Mingguan</button>
+                <button type="button" class="btn chart-mode-btn" data-mode="monthly">Bulanan</button>
+            </div>
+
+            {{-- Filter: bulan (untuk daily) --}}
+            <input type="month" id="filterMonth"
+                   class="form-control form-control-sm"
+                   value="{{ now()->format('Y-m') }}"
+                   title="Pilih bulan"
+                   style="max-width: 145px; display:block;">
+
+            {{-- Filter: tahun (untuk monthly & weekly) --}}
+            <select id="filterYear" class="form-select form-select-sm" style="max-width: 90px; display:none;">
+                @for($y = now()->year; $y >= now()->year - 4; $y--)
+                    <option value="{{ $y }}" {{ $y == now()->year ? 'selected' : '' }}>{{ $y }}</option>
+                @endfor
+            </select>
+        </div>
+    </div>
+
+    {{-- Chart canvas --}}
+    <div class="p-3 p-sm-4" style="position: relative;">
+        <div id="chartLoadingState" class="d-flex align-items-center justify-content-center gap-2"
+             style="height: 260px; display:none !important;">
+            <div class="spinner-border spinner-border-sm text-danger" role="status"></div>
+            <span style="font-size: 0.82rem; color: #94a3b8;">Memuat data...</span>
+        </div>
+        <canvas id="ontTrendChart" style="max-height: 280px;"></canvas>
+    </div>
+
+    {{-- Legend & Checkbox toggle summary bawah --}}
+    <div class="px-4 pb-3 d-flex flex-wrap align-items-center gap-4 border-top pt-3" style="border-color: #f1f5f9 !important;">
+        <div class="form-check d-flex align-items-center gap-2 mb-0">
+            <input class="form-check-input chart-filter-checkbox masuk" type="checkbox" id="toggleMasuk" checked>
+            <label class="form-check-label chart-checkbox-label d-flex align-items-center gap-2" for="toggleMasuk">
+                <span class="chart-bar-indicator" style="background:#2563eb;"></span>
+                <span style="color: #334155; font-weight: 500;">ONT Masuk:</span>
+                <strong id="summaryMasuk" style="color: #2563eb;">—</strong>
+            </label>
+        </div>
+        <div class="form-check d-flex align-items-center gap-2 mb-0">
+            <input class="form-check-input chart-filter-checkbox keluar" type="checkbox" id="toggleKeluar" checked>
+            <label class="form-check-label chart-checkbox-label d-flex align-items-center gap-2" for="toggleKeluar">
+                <span class="chart-bar-indicator" style="background:#c0392b;"></span>
+                <span style="color: #334155; font-weight: 500;">ONT Keluar:</span>
+                <strong id="summaryKeluar" style="color: #c0392b;">—</strong>
+            </label>
+        </div>
+        <small class="text-muted ms-auto d-none d-md-inline" style="font-size: 0.72rem;">* Centang checkbox untuk menampilkan/menyembunyikan batang grafik</small>
+    </div>
+</div>
+
+{{-- ── Rekapitulasi Per Teknisi ─────────────────────────────────────────────── --}}
+<div class="card-custom mb-4">
+    <div class="p-3 d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2"
+         style="border-bottom: 1px solid #e8eaed;">
+        <h6 class="fw-bold mb-0" style="font-size: 0.95rem; color: #1a1d23;">Rekapitulasi Per Teknisi</h6>
+        <div class="input-group input-group-sm" style="max-width: 210px;">
+            <span class="input-group-text bg-white border-end-0">
+                <i class="bi bi-search text-muted" style="font-size: 0.8rem;"></i>
+            </span>
+            <input type="text" id="searchTeknisi" class="form-control border-start-0 ps-0"
+                   placeholder="Cari nama teknisi..." style="font-size: 0.82rem;">
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-custom align-middle" id="tabelTeknisi">
+            <thead>
+                <tr>
+                    <th style="width:48px;">NO</th>
+                    <th>NAMA TEKNISI</th>
+                    <th class="text-center">INSTALLED</th>
+                    <th class="text-center">NOT INSTALLED</th>
+                    <th class="text-center">RUSAK</th>
+                    <th class="text-center">TOTAL DIBAWA</th>
+                    <th style="min-width: 180px;">RASIO TERPASANG</th>
+                </tr>
+            </thead>
+            <tbody id="tabelTeknisiBody">
+                @forelse($rekapTeknisi as $index => $tek)
+                @php
+                    $rasio = $tek['total_dibawa'] > 0
+                        ? round(($tek['installed'] / $tek['total_dibawa']) * 100)
+                        : 0;
+                    $barColor = $rasio >= 80 ? '#16a34a' : ($rasio >= 50 ? '#f59e0b' : ($rasio > 0 ? '#c0392b' : '#e5e7eb'));
+                @endphp
+                <tr class="teknisi-row">
+                    <td class="text-muted" style="font-size: 0.82rem;">{{ $index + 1 }}</td>
+                    <td>
+                        <span class="fw-semibold" style="font-size: 0.875rem; color: #1a1d23;">{{ $tek['nama'] }}</span>
+                    </td>
+                    <td class="text-center fw-bold" style="color: #16a34a; font-size: 0.9rem;">
+                        {{ $tek['installed'] }}
+                    </td>
+                    <td class="text-center fw-bold" style="color: #d97706; font-size: 0.9rem;">
+                        {{ $tek['not_installed'] }}
+                    </td>
+                    <td class="text-center fw-bold" style="color: #c0392b; font-size: 0.9rem;">
+                        {{ $tek['rusak'] }}
+                    </td>
+                    <td class="text-center fw-bold" style="color: #2563eb; font-size: 0.9rem;">
+                        {{ $tek['total_dibawa'] }}
+                    </td>
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            <div style="flex:1; height:8px; background:#f1f5f9; border-radius:99px; overflow:hidden;">
+                                <div style="width: {{ $rasio }}%; height:100%; background:{{ $barColor }}; border-radius:99px; transition: width 0.5s ease;"></div>
+                            </div>
+                            <span style="font-size: 0.78rem; font-weight: 600; color: {{ $barColor }}; min-width: 36px; text-align: right;">
+                                {{ $rasio }}%
+                            </span>
+                        </div>
+                    </td>
+                </tr>
+                @empty
+                <tr>
+                    <td colspan="7" class="text-center py-5 text-muted" style="font-size: 0.85rem;">
+                        <i class="bi bi-people fs-3 d-block mb-2 opacity-25"></i>
+                        Belum ada data teknisi.
+                    </td>
+                </tr>
+                @endforelse
+            </tbody>
+            @if(count($rekapTeknisi) > 0)
+            @php
+                $gtInstalled     = collect($rekapTeknisi)->sum('installed');
+                $gtNotInstalled  = collect($rekapTeknisi)->sum('not_installed');
+                $gtRusak         = collect($rekapTeknisi)->sum('rusak');
+                $gtTotal         = collect($rekapTeknisi)->sum('total_dibawa');
+                $gtRasio         = $gtTotal > 0 ? round(($gtInstalled / $gtTotal) * 100) : 0;
+                $gtColor         = $gtRasio >= 80 ? '#16a34a' : ($gtRasio >= 50 ? '#f59e0b' : ($gtRasio > 0 ? '#c0392b' : '#e5e7eb'));
+            @endphp
+            <tfoot>
+                <tr style="background: #f9fafb; border-top: 2px solid #e8eaed;">
+                    <td colspan="2" style="font-size: 0.78rem; font-weight: 700; color: #374151; padding: 0.7rem 1rem;">
+                        GRAND TOTAL ({{ count($rekapTeknisi) }} teknisi)
+                    </td>
+                    <td class="text-center fw-bold" style="color: #16a34a;">{{ $gtInstalled }}</td>
+                    <td class="text-center fw-bold" style="color: #d97706;">{{ $gtNotInstalled }}</td>
+                    <td class="text-center fw-bold" style="color: #c0392b;">{{ $gtRusak }}</td>
+                    <td class="text-center fw-bold" style="color: #2563eb;">{{ $gtTotal }}</td>
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            <div style="flex:1; height:8px; background:#f1f5f9; border-radius:99px; overflow:hidden;">
+                                <div style="width: {{ $gtRasio }}%; height:100%; background:{{ $gtColor }}; border-radius:99px;"></div>
+                            </div>
+                            <span style="font-size: 0.78rem; font-weight: 700; color: {{ $gtColor }}; min-width: 36px; text-align: right;">
+                                {{ $gtRasio }}%
+                            </span>
+                        </div>
+                    </td>
+                </tr>
+            </tfoot>
+            @endif
+        </table>
+    </div>
+</div>
+
+{{-- ── Catatan Definisi Kolom ───────────────────────────────────────────────── --}}
+<div class="card-custom">
+    <div class="p-3" style="border-bottom: 1px solid #e8eaed;">
+        <h6 class="fw-bold mb-0" style="font-size: 0.9rem; color: #1a1d23;">
+            <span style="color: #c0392b;">📌</span> Catatan Definisi Kolom
+        </h6>
+    </div>
+    <div class="p-3">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <div class="p-3 rounded-2" style="background: #f0fdf4; border: 1px solid #bbf7d0;">
+                    <div class="mb-1">
+                        <span style="font-size: 0.75rem; font-weight: 700; color: #16a34a; letter-spacing: 0.04em;">INSTALLED</span>
+                        <span style="font-size: 0.78rem; color: #374151; font-weight: 500;"> — Perangkat Terpasang</span>
+                    </div>
+                    <p class="mb-0" style="font-size: 0.78rem; color: #4b7a56; line-height: 1.5;">
+                        Jumlah unit teknisi yang terdata pada laporan WO dengan status <strong>"Work Order Selesai"</strong>.
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="p-3 rounded-2" style="background: #fffbeb; border: 1px solid #fde68a;">
+                    <div class="mb-1">
+                        <span style="font-size: 0.75rem; font-weight: 700; color: #d97706; letter-spacing: 0.04em;">NOT INSTALLED</span>
+                        <span style="font-size: 0.78rem; color: #374151; font-weight: 500;"> — Unit di Lapangan</span>
+                    </div>
+                    <p class="mb-0" style="font-size: 0.78rem; color: #7c6320; line-height: 1.5;">
+                        Selisih unit yang dibawa teknisi namun belum memiliki laporan WO Selesai (Total Dibawa – INSTALLED).
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="p-3 rounded-2" style="background: #fef2f2; border: 1px solid #fecaca;">
+                    <div class="mb-1">
+                        <span style="font-size: 0.75rem; font-weight: 700; color: #c0392b; letter-spacing: 0.04em;">RUSAK</span>
+                        <span style="font-size: 0.78rem; color: #374151; font-weight: 500;"> — Unit Retur / Cacat</span>
+                    </div>
+                    <p class="mb-0" style="font-size: 0.78rem; color: #7f3030; line-height: 1.5;">
+                        Jumlah unit milik teknisi yang ditandai kondisi <strong>"Rusak"</strong> pada tabel ONT Keluar.
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="p-3 rounded-2" style="background: #eff6ff; border: 1px solid #bfdbfe;">
+                    <div class="mb-1">
+                        <span style="font-size: 0.75rem; font-weight: 700; color: #2563eb; letter-spacing: 0.04em;">TOTAL</span>
+                        <span style="font-size: 0.78rem; color: #374151; font-weight: 500;"> — Total Dibawa</span>
+                    </div>
+                    <p class="mb-0" style="font-size: 0.78rem; color: #2d4a80; line-height: 1.5;">
+                        Total akumulasi fisik modem ONT yang pernah diserahkan kepada teknisi.
+                    </p>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Row: Tabel Rekapitulasi per Teknisi (PRD 4.D #2) & Info Status -->
-<div class="row g-4">
-    <!-- Left Column: Tabel Rekapitulasi Performa & Persediaan per Teknisi -->
-    <div class="col-lg-8">
-        <div class="card card-custom h-100">
-            <div class="card-header bg-white border-bottom py-3 px-3.5">
-                <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2">
-                    <div>
-                        <h6 class="fw-bold mb-0 text-dark">Tabel Rekapitulasi per Teknisi</h6>
-                        <span class="text-muted small" style="font-size: 0.78rem;">Akumulasi status unit ONT berdasarkan penyerahan dan laporan WO lapangan</span>
-                    </div>
-                    <div class="d-flex align-items-center gap-2">
-                        <input type="text" id="filterTeknisiInput" class="form-control form-control-sm" placeholder="Cari teknisi..." style="max-width: 180px;" onkeyup="filterTableTeknisi()">
-                        <a href="{{ url('/reporting-wo') }}" class="btn btn-outline-theme btn-sm rounded-2 text-nowrap" style="font-size: 0.78rem;">
-                            <i class="bi bi-journal-text me-1"></i> Detail WO
-                        </a>
-                    </div>
-                </div>
-            </div>
-
-            <div class="table-responsive">
-                <table class="table table-custom table-hover align-middle mb-0" id="tableRekapTeknisi">
-                    <thead>
-                        <tr>
-                            <th class="text-center" style="width: 50px;">No</th>
-                            <th>Nama Teknisi</th>
-                            <th class="text-center">Installed</th>
-                            <th class="text-center">Not Installed</th>
-                            <th class="text-center">Rusak</th>
-                            <th class="text-center">Total Dibawa</th>
-                            <th class="text-center" style="width: 140px;">Rasio Terpasang</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @php
-                            $grandInstalled = 0;
-                            $grandNotInstalled = 0;
-                            $grandRusak = 0;
-                            $grandTotalDibawa = 0;
-                        @endphp
-
-                        @forelse($rekapTeknisi ?? [] as $index => $teknisi)
-                        @php
-                            $installed = $teknisi['installed'] ?? 0;
-                            $notInstalled = $teknisi['not_installed'] ?? max(0, ($teknisi['total_dibawa'] ?? $teknisi['total_diambil'] ?? 0) - $installed);
-                            $rusak = $teknisi['rusak'] ?? 0;
-                            $totalDibawa = $teknisi['total_dibawa'] ?? $teknisi['total_diambil'] ?? 0;
-                            $pctInstalled = $totalDibawa > 0 ? round(($installed / $totalDibawa) * 100) : 0;
-
-                            $grandInstalled += $installed;
-                            $grandNotInstalled += $notInstalled;
-                            $grandRusak += $rusak;
-                            $grandTotalDibawa += $totalDibawa;
-                        @endphp
-                        <tr>
-                            <td class="text-muted text-center small">{{ $loop->iteration }}</td>
-                            <td>
-                                <div class="d-flex align-items-center gap-2">
-                                    <div class="rounded-circle fw-semibold d-flex align-items-center justify-content-center small" 
-                                         style="width: 30px; height: 30px; font-size: 0.75rem; background-color: var(--theme-red-light); color: var(--theme-red); border: 1px solid var(--theme-red-border);">
-                                        {{ strtoupper(substr($teknisi['nama'], 0, 2)) }}
-                                    </div>
-                                    <span class="fw-medium text-dark teknisi-nama">{{ $teknisi['nama'] }}</span>
-                                </div>
-                            </td>
-                            <!-- INSTALLED -->
-                            <td class="text-center">
-                                @if($installed > 0)
-                                    <span class="badge badge-soft-success px-2.5 py-1 rounded-1 small fw-semibold">
-                                        {{ $installed }}
-                                    </span>
-                                @else
-                                    <span class="text-muted small">0</span>
-                                @endif
-                            </td>
-                            <!-- NOT INSTALLED -->
-                            <td class="text-center">
-                                @if($notInstalled > 0)
-                                    <span class="badge badge-soft-secondary px-2.5 py-1 rounded-1 small fw-semibold">
-                                        {{ $notInstalled }}
-                                    </span>
-                                @else
-                                    <span class="text-muted small">0</span>
-                                @endif
-                            </td>
-                            <!-- RUSAK -->
-                            <td class="text-center">
-                                @if($rusak > 0)
-                                    <span class="badge badge-theme-red px-2.5 py-1 rounded-1 small fw-semibold">
-                                        {{ $rusak }}
-                                    </span>
-                                @else
-                                    <span class="text-muted small">0</span>
-                                @endif
-                            </td>
-                            <!-- TOTAL DIBAWA -->
-                            <td class="text-center">
-                                <span class="fw-bold text-dark fs-6">{{ $totalDibawa }}</span>
-                            </td>
-                            <!-- PROGRESS / RASIO TERPASANG -->
-                            <td class="text-center">
-                                <div class="d-flex align-items-center justify-content-center gap-2">
-                                    <div class="progress flex-grow-1" style="height: 6px; background-color: #f1f5f9; border-radius: 4px;">
-                                        <div class="progress-bar rounded-1" role="progressbar" style="width: {{ $pctInstalled }}%; background-color: {{ $pctInstalled >= 70 ? '#166534' : ($pctInstalled > 0 ? '#b91c1c' : '#cbd5e1') }};"></div>
-                                    </div>
-                                    <span class="small fw-medium text-muted" style="font-size: 0.75rem; min-width: 32px; text-align: right;">{{ $pctInstalled }}%</span>
-                                </div>
-                            </td>
-                        </tr>
-                        @empty
-                        <tr>
-                            <td colspan="7" class="text-center py-5 text-muted small">
-                                <i class="bi bi-people fs-4 d-block mb-2 text-muted opacity-50"></i>
-                                Belum ada data transaksi penyerahan teknisi.
-                            </td>
-                        </tr>
-                        @endforelse
-                    </tbody>
-
-                    <!-- Baris Grand Total Sesuai PRD 4.D #2 -->
-                    @if(!empty($rekapTeknisi) && count($rekapTeknisi) > 0)
-                    <tfoot class="border-top-2" style="background-color: #fafbfc;">
-                        <tr class="fw-bold text-dark">
-                            <td colspan="2" class="py-3 px-3 text-uppercase" style="font-size: 0.78rem; letter-spacing: 0.03em;">
-                                <i class="bi bi-calculator me-1 text-muted"></i> Grand Total (Semua Teknisi)
-                            </td>
-                            <td class="text-center py-3">
-                                <span class="badge badge-soft-success px-2.5 py-1 rounded-1 fs-6">
-                                    {{ $grandInstalled }}
-                                </span>
-                            </td>
-                            <td class="text-center py-3">
-                                <span class="badge badge-soft-secondary px-2.5 py-1 rounded-1 fs-6">
-                                    {{ $grandNotInstalled }}
-                                </span>
-                            </td>
-                            <td class="text-center py-3">
-                                <span class="badge badge-theme-red px-2.5 py-1 rounded-1 fs-6">
-                                    {{ $grandRusak }}
-                                </span>
-                            </td>
-                            <td class="text-center py-3">
-                                <span class="fw-bold text-dark fs-5">{{ $grandTotalDibawa }}</span>
-                            </td>
-                            <td class="text-center py-3">
-                                @php
-                                    $grandPct = $grandTotalDibawa > 0 ? round(($grandInstalled / $grandTotalDibawa) * 100) : 0;
-                                @endphp
-                                <div class="d-flex align-items-center justify-content-center gap-2">
-                                    <div class="progress flex-grow-1" style="height: 6px; background-color: #e2e8f0; border-radius: 4px;">
-                                        <div class="progress-bar rounded-1" role="progressbar" style="width: {{ $grandPct }}%; background-color: #166534;"></div>
-                                    </div>
-                                    <span class="small fw-bold text-dark" style="font-size: 0.78rem; min-width: 32px; text-align: right;">{{ $grandPct }}%</span>
-                                </div>
-                            </td>
-                        </tr>
-                    </tfoot>
-                    @endif
-                </table>
-            </div>
-        </div>
-    </div>
-
-    <!-- Right Column: Panduan Aturan Rekapitulasi & Alur Sistem -->
-    <div class="col-lg-4">
-        <div class="card card-custom h-100">
-            <div class="card-header bg-white border-bottom py-3 px-3">
-                <h6 class="fw-bold mb-0 text-dark">Keterangan Kolom Rekapitulasi</h6>
-                <span class="text-muted small" style="font-size: 0.78rem;">Formula dan acuan data sesuai PRD</span>
-            </div>
-            <div class="card-body p-3">
-                <!-- Penjelasan Kolom -->
-                <div class="d-flex flex-column gap-3 mb-4">
-                    <div class="d-flex gap-2.5 align-items-start">
-                        <span class="badge badge-soft-success rounded-1 px-2 py-0.5" style="font-size: 0.72rem; min-width: 65px; text-align: center;">INSTALLED</span>
-                        <div>
-                            <span class="d-block fw-semibold text-dark small">Perangkat Terpasang</span>
-                            <span class="text-muted d-block" style="font-size: 0.76rem; line-height: 1.4;">
-                                Jumlah unit teknisi yang terdata pada laporan WO dengan status <strong>"Work Order Selesai"</strong>.
-                            </span>
-                        </div>
-                    </div>
-
-                    <div class="d-flex gap-2.5 align-items-start">
-                        <span class="badge badge-soft-secondary rounded-1 px-2 py-0.5" style="font-size: 0.72rem; min-width: 65px; text-align: center;">NOT INSTALLED</span>
-                        <div>
-                            <span class="d-block fw-semibold text-dark small">Unit di Lapangan</span>
-                            <span class="text-muted d-block" style="font-size: 0.76rem; line-height: 1.4;">
-                                Selisih unit yang dibawa teknisi namun belum memiliki laporan WO Selesai (Total Dibawa &minus; INSTALLED).
-                            </span>
-                        </div>
-                    </div>
-
-                    <div class="d-flex gap-2.5 align-items-start">
-                        <span class="badge badge-theme-red rounded-1 px-2 py-0.5" style="font-size: 0.72rem; min-width: 65px; text-align: center;">RUSAK</span>
-                        <div>
-                            <span class="d-block fw-semibold text-dark small">Unit Retur / Cacat</span>
-                            <span class="text-muted d-block" style="font-size: 0.76rem; line-height: 1.4;">
-                                Jumlah unit milik teknisi yang ditandai kondisi <strong>"Rusak"</strong> pada tabel ONT Keluar.
-                            </span>
-                        </div>
-                    </div>
-
-                    <div class="d-flex gap-2.5 align-items-start">
-                        <span class="badge bg-light border text-dark rounded-1 px-2 py-0.5" style="font-size: 0.72rem; min-width: 65px; text-align: center;">TOTAL</span>
-                        <div>
-                            <span class="d-block fw-semibold text-dark small">Total Dibawa</span>
-                            <span class="text-muted d-block" style="font-size: 0.76rem; line-height: 1.4;">
-                                Total akumulasi fisik modem ONT yang pernah diserahkan kepada teknisi.
-                            </span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Navigasi Cepat Modul -->
-                <div class="p-3 rounded-2 border" style="background-color: #fafbfc;">
-                    <span class="fw-semibold text-dark small d-block mb-2">Tindakan Cepat:</span>
-                    <div class="d-flex flex-column gap-2" style="font-size: 0.8rem;">
-                        <a href="{{ url('/reporting-wo') }}" class="text-decoration-none d-flex justify-content-between align-items-center text-muted">
-                            <span><i class="bi bi-upload me-1 text-danger"></i> Impor Rekap WO (.xlsx)</span>
-                            <i class="bi bi-chevron-right small"></i>
-                        </a>
-                        <a href="{{ url('/ont-keluar') }}" class="text-decoration-none d-flex justify-content-between align-items-center text-muted">
-                            <span><i class="bi bi-arrow-up-right-circle me-1 text-danger"></i> Form Penyerahan Teknisi</span>
-                            <i class="bi bi-chevron-right small"></i>
-                        </a>
-                        <a href="{{ url('/ont-masuk') }}" class="text-decoration-none d-flex justify-content-between align-items-center text-muted">
-                            <span><i class="bi bi-box-seam me-1 text-danger"></i> Kelola Stok Master Gudang</span>
-                            <i class="bi bi-chevron-right small"></i>
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
 @endsection
 
 @push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script>
-    // Live filter tabel teknisi
-    function filterTableTeknisi() {
-        const input = document.getElementById('filterTeknisiInput');
-        const filter = input.value.toLowerCase();
-        const table = document.getElementById('tableRekapTeknisi');
-        const trs = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
+    // ── Chart ONT Tren ──────────────────────────────────────────────────────────
+    const CHART_URL   = '{{ route("dashboard.chart-data") }}';
+    let   ontChart    = null;
+    let   currentMode = 'daily';
 
-        for (let i = 0; i < trs.length; i++) {
-            const tdNama = trs[i].querySelector('.teknisi-nama');
-            if (tdNama) {
-                const txtValue = tdNama.textContent || tdNama.innerText;
-                trs[i].style.display = txtValue.toLowerCase().indexOf(filter) > -1 ? '' : 'none';
+    const filterMonth = document.getElementById('filterMonth');
+    const filterYear  = document.getElementById('filterYear');
+    const modeButtons = document.querySelectorAll('.chart-mode-btn');
+
+    function buildParams() {
+        const p = new URLSearchParams({ mode: currentMode });
+        if (currentMode === 'daily' || currentMode === 'weekly') {
+            if (filterMonth.value) {
+                p.set('month', filterMonth.value);
             }
+        } else if (currentMode === 'monthly') {
+            p.set('year', filterYear.value);
         }
+        return p.toString();
     }
+
+    const toggleMasuk  = document.getElementById('toggleMasuk');
+    const toggleKeluar = document.getElementById('toggleKeluar');
+
+    function renderChart(data) {
+        const ctx = document.getElementById('ontTrendChart').getContext('2d');
+
+        const totalMasuk  = data.masuk.reduce((a, b) => a + b, 0);
+        const totalKeluar = data.keluar.reduce((a, b) => a + b, 0);
+        document.getElementById('summaryMasuk').textContent  = totalMasuk.toLocaleString('id-ID');
+        document.getElementById('summaryKeluar').textContent = totalKeluar.toLocaleString('id-ID');
+
+        if (ontChart) ontChart.destroy();
+
+        ontChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: data.labels,
+                datasets: [
+                    {
+                        label: 'ONT Masuk',
+                        data: data.masuk,
+                        backgroundColor: '#2563eb',
+                        borderColor: '#2563eb',
+                        borderWidth: 1,
+                        borderRadius: 4,
+                        borderSkipped: false,
+                        maxBarThickness: 32,
+                        hidden: !toggleMasuk.checked,
+                    },
+                    {
+                        label: 'ONT Keluar',
+                        data: data.keluar,
+                        backgroundColor: '#c0392b',
+                        borderColor: '#c0392b',
+                        borderWidth: 1,
+                        borderRadius: 4,
+                        borderSkipped: false,
+                        maxBarThickness: 32,
+                        hidden: !toggleKeluar.checked,
+                    },
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                animation: { duration: 400, easing: 'easeOutQuart' },
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: {
+                        display: false,
+                    },
+                    tooltip: {
+                        backgroundColor: '#1e293b',
+                        titleFont: { family: 'Plus Jakarta Sans', size: 12, weight: '600' },
+                        bodyFont:  { family: 'Plus Jakarta Sans', size: 12 },
+                        padding: 10,
+                        cornerRadius: 8,
+                        callbacks: {
+                            label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString('id-ID')} unit`,
+                        }
+                    },
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: {
+                            font: { family: 'Plus Jakarta Sans', size: 11 },
+                            color: '#94a3b8',
+                            maxRotation: 45,
+                        },
+                        border: { display: false },
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: '#f1f5f9' },
+                        ticks: {
+                            font:      { family: 'Plus Jakarta Sans', size: 11 },
+                            color:     '#94a3b8',
+                            precision: 0,
+                        },
+                        border: { display: false },
+                    }
+                }
+            }
+        });
+    }
+
+    function loadChart() {
+        fetch(`${CHART_URL}?${buildParams()}`)
+            .then(r => r.json())
+            .then(data => renderChart(data))
+            .catch(() => {});
+    }
+
+    // Toggle dataset visibility via checkboxes
+    toggleMasuk.addEventListener('change', function () {
+        if (ontChart) {
+            ontChart.setDatasetVisibility(0, this.checked);
+            ontChart.update();
+        }
+    });
+
+    toggleKeluar.addEventListener('change', function () {
+        if (ontChart) {
+            ontChart.setDatasetVisibility(1, this.checked);
+            ontChart.update();
+        }
+    });
+
+    // Mode switch
+    modeButtons.forEach(btn => {
+        btn.addEventListener('click', function () {
+            modeButtons.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            currentMode = this.dataset.mode;
+
+            // Tampilkan filter sesuai mode
+            if (currentMode === 'daily' || currentMode === 'weekly') {
+                filterMonth.style.display = 'block';
+                filterYear.style.display  = 'none';
+            } else {
+                filterMonth.style.display = 'none';
+                filterYear.style.display  = 'block';
+            }
+            loadChart();
+        });
+    });
+
+    filterMonth.addEventListener('change', loadChart);
+    filterYear.addEventListener('change', loadChart);
+
+    // Initial load
+    loadChart();
+
+    // ── Live search teknisi ─────────────────────────────────────────────────────
+    const searchInput = document.getElementById('searchTeknisi');
+    if (searchInput) {
+        searchInput.addEventListener('input', function () {
+            const q = this.value.toLowerCase().trim();
+            document.querySelectorAll('#tabelTeknisiBody .teknisi-row').forEach(row => {
+                const nama = row.querySelector('td:nth-child(2)')?.textContent.toLowerCase() || '';
+                row.style.display = nama.includes(q) ? '' : 'none';
+            });
+        });
+    }
+
+    // Auto dismiss alerts
+    setTimeout(() => {
+        document.querySelectorAll('.alert').forEach(el => {
+            try { bootstrap.Alert.getOrCreateInstance(el).close(); } catch(e) {}
+        });
+    }, 4000);
 </script>
 @endpush

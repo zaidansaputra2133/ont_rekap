@@ -2,8 +2,8 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\OntMasukController;
 use App\Http\Controllers\OntKeluarController;
+use App\Http\Controllers\OntMasukController;
 use App\Http\Controllers\ReportingWoController;
 
 /*
@@ -26,12 +26,14 @@ Route::middleware('auth')->group(function () {
 
     // 1. Dashboard Utama
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/dashboard/chart-data', [DashboardController::class, 'chartData'])->name('dashboard.chart-data');
 
     // 2. Modul ONT Masuk (Gudang) - Full Backend
     Route::get('/ont-masuk', [OntMasukController::class, 'index'])->name('ont-masuk.index');
     Route::get('/ont-masuk/template', [OntMasukController::class, 'downloadTemplate'])->name('ont-masuk.template');
     Route::post('/ont-masuk', [OntMasukController::class, 'store'])->name('ont-masuk.store');
     Route::post('/ont-masuk/import', [OntMasukController::class, 'import'])->name('ont-masuk.import');
+    Route::put('/ont-masuk/{ontMasuk}', [OntMasukController::class, 'update'])->name('ont-masuk.update');
     Route::delete('/ont-masuk/{ontMasuk}', [OntMasukController::class, 'destroy'])->name('ont-masuk.destroy');
 
     // 3. Modul ONT Keluar (Penyerahan Teknisi) - Full Backend
@@ -44,6 +46,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/reporting-wo', [ReportingWoController::class, 'index'])->name('reporting-wo.index');
     Route::get('/reporting-wo/template', [ReportingWoController::class, 'downloadTemplate'])->name('reporting-wo.template');
     Route::post('/reporting-wo/import', [ReportingWoController::class, 'import'])->name('reporting-wo.import');
+    Route::put('/reporting-wo/{reportingWo}', [ReportingWoController::class, 'update'])->name('reporting-wo.update');
     Route::delete('/reporting-wo/{reportingWo}', [ReportingWoController::class, 'destroy'])->name('reporting-wo.destroy');
 
 });

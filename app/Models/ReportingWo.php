@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ReportingWo extends Model
@@ -56,14 +56,16 @@ class ReportingWo extends Model
      */
     public function scopeSearch(Builder $query, ?string $keyword): Builder
     {
-        if (!$keyword) return $query;
+        if (! $keyword) {
+            return $query;
+        }
 
         return $query->where(function ($q) use ($keyword) {
             $q->where('no_order', 'like', "%{$keyword}%")
-              ->orWhere('serial_number', 'like', "%{$keyword}%")
-              ->orWhere('nama_teknisi', 'like', "%{$keyword}%")
-              ->orWhere('cid', 'like', "%{$keyword}%")
-              ->orWhere('nik_teknisi', 'like', "%{$keyword}%");
+                ->orWhere('serial_number', 'like', "%{$keyword}%")
+                ->orWhere('nama_teknisi', 'like', "%{$keyword}%")
+                ->orWhere('cid', 'like', "%{$keyword}%")
+                ->orWhere('nik_teknisi', 'like', "%{$keyword}%");
         });
     }
 
@@ -72,7 +74,9 @@ class ReportingWo extends Model
      */
     public function scopeFilterStatus(Builder $query, ?string $status): Builder
     {
-        if (!$status) return $query;
+        if (! $status) {
+            return $query;
+        }
 
         if ($status === 'selesai' || $status === 'installed') {
             return $query->where('status_wo', 'like', '%selesai%');
@@ -90,7 +94,9 @@ class ReportingWo extends Model
      */
     public function scopeFilterTeknisi(Builder $query, ?string $teknisi): Builder
     {
-        if (!$teknisi) return $query;
+        if (! $teknisi) {
+            return $query;
+        }
 
         return $query->where('nama_teknisi', $teknisi);
     }

@@ -3,19 +3,20 @@
 namespace App\Imports;
 
 use App\Models\OntMasuk;
+use Carbon\Carbon;
+use Maatwebsite\Excel\Concerns\SkipsErrors;
+use Maatwebsite\Excel\Concerns\SkipsOnError;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
-use Maatwebsite\Excel\Concerns\WithValidation;
-use Maatwebsite\Excel\Concerns\SkipsOnError;
-use Maatwebsite\Excel\Concerns\SkipsErrors;
-use Throwable;
+use PhpOffice\PhpSpreadsheet\Shared\Date;
 
-class OntMasukImport implements ToModel, WithHeadingRow, SkipsOnError
+class OntMasukImport implements SkipsOnError, ToModel, WithHeadingRow
 {
     use SkipsErrors;
 
     private int $importedCount = 0;
-    private int $skippedCount  = 0;
+
+    private int $skippedCount = 0;
 
     /**
      * Proses setiap baris dari spreadsheet.
@@ -26,19 +27,20 @@ class OntMasukImport implements ToModel, WithHeadingRow, SkipsOnError
         $sn = strtoupper(trim($row['serial_number'] ?? ''));
 
         // Lewati jika SN kosong atau sudah ada
-        if (!$sn || OntMasuk::where('serial_number', $sn)->exists()) {
+        if (! $sn || OntMasuk::where('serial_number', $sn)->exists()) {
             $this->skippedCount++;
+
             return null;
         }
 
         $tanggal = null;
-        if (!empty($row['tanggal_masuk'])) {
+        if (! empty($row['tanggal_masuk'])) {
             try {
                 // Tangani format tanggal dari Excel (angka serial atau string)
                 if (is_numeric($row['tanggal_masuk'])) {
-                    $tanggal = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($row['tanggal_masuk'])->format('Y-m-d');
+                    $tanggal = Date::excelToDateTimeObject($row['tanggal_masuk'])->format('Y-m-d');
                 } else {
-                    $tanggal = \Carbon\Carbon::parse($row['tanggal_masuk'])->format('Y-m-d');
+                    $tanggal = Carbon::parse($row['tanggal_masuk'])->format('Y-m-d');
                 }
             } catch (\Exception $e) {
                 $tanggal = now()->format('Y-m-d');
@@ -49,11 +51,11 @@ class OntMasukImport implements ToModel, WithHeadingRow, SkipsOnError
 
         $this->importedCount++;
 
-        $brand = !empty($row['brand']) ? trim($row['brand']) : OntMasuk::detectBrand($sn);
+        $brand = ! empty($row['brand']) ? trim($row['brand']) : OntMasuk::detectBrand($sn);
 
         return new OntMasuk([
             'serial_number' => $sn,
-            'brand'         => $brand ?: null,
+            'brand' => $brand ?: null,
             'tanggal_masuk' => $tanggal,
         ]);
     }

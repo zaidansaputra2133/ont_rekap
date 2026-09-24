@@ -26,11 +26,11 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $credentials = $request->validate([
-            'email'    => ['required', 'email'],
+            'email' => ['required', 'email'],
             'password' => ['required'],
         ], [
-            'email.required'    => 'Email wajib diisi.',
-            'email.email'       => 'Format email tidak valid.',
+            'email.required' => 'Email wajib diisi.',
+            'email.email' => 'Format email tidak valid.',
             'password.required' => 'Password wajib diisi.',
         ]);
 
@@ -38,7 +38,7 @@ class AuthController extends Controller
             $request->session()->regenerate();
 
             return redirect()->intended(route('dashboard'))
-                ->with('success', 'Selamat datang, ' . Auth::user()->name . '!');
+                ->with('success', 'Selamat datang, '.Auth::user()->name.'!');
         }
 
         return back()

@@ -2,10 +2,15 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\ReportingWo;
 use App\Imports\ReportingWoImport;
-use Maatwebsite\Excel\Facades\Excel;
+use App\Models\ReportingWo;
 use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class ReportingWoController extends Controller
 {
@@ -60,11 +65,11 @@ class ReportingWoController extends Controller
             'file' => ['required', 'file', 'mimes:xlsx,xls,csv', 'max:20480'],
         ], [
             'file.required' => 'Silakan pilih file Excel (.xlsx / .csv) laporan WO.',
-            'file.mimes'    => 'Format file harus berupa .xlsx, .xls, atau .csv.',
-            'file.max'      => 'Ukuran file maksimal adalah 20MB.',
+            'file.mimes' => 'Format file harus berupa .xlsx, .xls, atau .csv.',
+            'file.max' => 'Ukuran file maksimal adalah 20MB.',
         ]);
 
-        $import = new ReportingWoImport();
+        $import = new ReportingWoImport;
         Excel::import($import, $request->file('file'));
 
         $imported = $import->importedCount();
@@ -88,7 +93,7 @@ class ReportingWoController extends Controller
             $parts[] = "{$skipped} baris kosong/tidak valid dilewati";
         }
 
-        $message = !empty($parts) ? 'Proses impor selesai: ' . implode('. ', $parts) . '.' : 'Tidak ada data yang berhasil diimpor.';
+        $message = ! empty($parts) ? 'Proses impor selesai: '.implode('. ', $parts).'.' : 'Tidak ada data yang berhasil diimpor.';
 
         $flashType = ($imported > 0 || $updated > 0) ? 'success' : ($unregistered > 0 ? 'error' : 'info');
 
@@ -101,7 +106,7 @@ class ReportingWoController extends Controller
      */
     public function downloadTemplate()
     {
-        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Template Reporting WO');
 
@@ -165,30 +170,61 @@ class ReportingWoController extends Controller
         $headerStyle = [
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
             'fill' => [
-                'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                'fillType' => Fill::FILL_SOLID,
                 'startColor' => ['rgb' => 'B91C1C'],
             ],
             'alignment' => [
-                'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
-                'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
             ],
         ];
         $sheet->getStyle('A1:J1')->applyFromArray($headerStyle);
         $sheet->getRowDimension(1)->setRowHeight(25);
 
         // Pastikan kolom kode/angka tidak diubah formatnya oleh Excel
-        $sheet->getStyle('A2:E100')->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_TEXT);
+        $sheet->getStyle('A2:E100')->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_TEXT);
 
         foreach (range('A', 'J') as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
 
         return response()->streamDownload(function () use ($spreadsheet) {
-            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+            $writer = new Xlsx($spreadsheet);
             $writer->save('php://output');
         }, 'template_reporting_wo.xlsx', [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ]);
+    }
+
+    /**
+     * Update data laporan WO secara manual (edit).
+     */
+    public function update(Request $request, ReportingWo $reportingWo)
+    {
+        $request->validate([
+            'no_order' => ['required', 'string', 'max:100'],
+            'cid' => ['nullable', 'string', 'max:50'],
+            'serial_number' => ['required', 'string', 'max:100'],
+            'nama_teknisi' => ['required', 'string', 'max:100'],
+            'nik_teknisi' => ['nullable', 'string', 'max:50'],
+            'status_wo' => ['nullable', 'string', 'max:100'],
+            'tanggal_sa' => ['nullable', 'date'],
+            'vendor' => ['nullable', 'string', 'max:100'],
+            'sektor' => ['nullable', 'string', 'max:100'],
+            'cek_match' => ['nullable', 'string', 'max:50'],
+        ], [
+            'no_order.required' => 'No. Order wajib diisi.',
+            'serial_number.required' => 'Serial Number wajib diisi.',
+            'nama_teknisi.required' => 'Nama Teknisi wajib diisi.',
+        ]);
+
+        $reportingWo->update($request->only([
+            'no_order', 'cid', 'serial_number', 'nama_teknisi', 'nik_teknisi',
+            'status_wo', 'tanggal_sa', 'vendor', 'sektor', 'cek_match',
+        ]));
+
+        return redirect()->route('reporting-wo.index')
+            ->with('success', "Laporan WO {$reportingWo->no_order} berhasil diperbarui.");
     }
 
     /**
@@ -203,4 +239,3 @@ class ReportingWoController extends Controller
             ->with('success', "Data laporan Work Order {$noOrder} berhasil dihapus.");
     }
 }
-

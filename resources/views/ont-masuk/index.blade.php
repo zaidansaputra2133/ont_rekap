@@ -152,11 +152,12 @@
                                             data-sn="{{ $row->serial_number }}"
                                             data-brand="{{ $row->brand }}"
                                             data-tgl="{{ $row->tanggal_masuk?->toDateString() }}">Edit</button>
-                                    <form method="POST" action="{{ route('ont-masuk.destroy', $row) }}" class="m-0"
-                                          data-confirm="Hapus unit {{ $row->serial_number }}? Data ONT Keluar & Reporting WO yang terkait SN ini juga ikut terhapus.">
-                                        @csrf @method('DELETE')
-                                        <button type="submit" class="btn btn-act btn-act-red">Hapus</button>
-                                    </form>
+                                    <button type="button" class="btn btn-act btn-act-red js-delete-confirm"
+                                            data-type="ont-masuk"
+                                            data-action="{{ route('ont-masuk.destroy', $row) }}"
+                                            data-sn="{{ $row->serial_number }}"
+                                            data-brand="{{ $row->brand ?: '—' }}"
+                                            data-tanggal="{{ $row->tanggal_masuk?->format('d-m-Y') ?? '—' }}">Hapus</button>
                                 </div>
                             </td>
                         </tr>

@@ -25,15 +25,23 @@
         </div>
 
         @if(session('success'))
-            <div class="flash flash-success mb-3"><i class="bi bi-check-circle-fill"></i><div>{{ session('success') }}</div></div>
+            <div class="flash flash-success mb-3" id="loginFlash">
+                <div class="flash-content">
+                    <i class="bi bi-check-circle-fill"></i>
+                    <span>{{ session('success') }}</span>
+                </div>
+                <button type="button" class="flash-close" onclick="this.closest('.flash').remove()" aria-label="Tutup">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
         @endif
 
-        <form method="POST" action="{{ route('login.post') }}" id="loginForm" class="d-flex flex-column gap-3" novalidate>
+        <form method="POST" action="{{ route('login.post') }}" id="loginForm" class="d-flex flex-column gap-3" novalidate autocomplete="off">
             @csrf
 
             <div>
                 <label for="email" class="lbl">Email</label>
-                <input type="email" id="email" name="email" value="{{ old('email') }}" autofocus autocomplete="username"
+                <input type="email" id="email" name="email" value="{{ old('email') }}" autofocus autocomplete="off"
                        placeholder="Masukkan email"
                        class="form-control login-input @error('email') is-invalid @enderror">
             </div>
@@ -41,7 +49,7 @@
             <div>
                 <label for="password" class="lbl">Password</label>
                 <div class="pass-wrap">
-                    <input type="password" id="password" name="password" autocomplete="current-password"
+                    <input type="password" id="password" name="password" autocomplete="new-password"
                            placeholder="Masukkan password"
                            class="form-control login-input @error('password') is-invalid @enderror">
                     <button type="button" class="pass-toggle" id="passToggle" aria-label="Tampilkan password">
@@ -57,8 +65,13 @@
 
             @if($errors->any())
                 <div class="flash flash-error">
-                    <i class="bi bi-exclamation-triangle"></i>
-                    <div>{{ $errors->first() }}</div>
+                    <div class="flash-content">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                        <span>{{ $errors->first() }}</span>
+                    </div>
+                    <button type="button" class="flash-close" onclick="this.closest('.flash').remove()" aria-label="Tutup">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
                 </div>
             @endif
 

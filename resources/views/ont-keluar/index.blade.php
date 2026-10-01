@@ -167,11 +167,13 @@
                                     <button type="button" class="btn btn-act btn-act-amber js-kondisi text-nowrap"
                                             data-id="{{ $row->id }}" data-sn="{{ $row->serial_number }}"
                                             data-ket="{{ $row->keterangan }}" data-catatan="{{ $row->catatan }}">Ubah Kondisi</button>
-                                    <form method="POST" action="{{ route('ont-keluar.destroy', $row) }}" class="m-0"
-                                          data-confirm="Hapus transaksi keluar SN {{ $row->serial_number }}? Unit akan kembali tersedia di stok gudang.">
-                                        @csrf @method('DELETE')
-                                        <button type="submit" class="btn btn-act btn-act-red">Hapus</button>
-                                    </form>
+                                    <button type="button" class="btn btn-act btn-act-red js-delete-confirm"
+                                            data-type="ont-keluar"
+                                            data-action="{{ route('ont-keluar.destroy', $row) }}"
+                                            data-sn="{{ $row->serial_number }}"
+                                            data-teknisi="{{ $row->nama_teknisi }}"
+                                            data-tanggal="{{ $row->tanggal_keluar?->format('d-m-Y') ?? '—' }}"
+                                            data-kondisi="{{ $row->isRusak() ? 'Rusak' : 'Normal' }}">Hapus</button>
                                 </div>
                             </td>
                         </tr>

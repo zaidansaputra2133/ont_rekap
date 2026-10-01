@@ -124,11 +124,13 @@
                                 @endif
                             </td>
                             <td>
-                                <form method="POST" action="{{ route('reporting-wo.destroy', $row) }}" class="m-0"
-                                      data-confirm="Hapus laporan WO {{ $row->no_order }}?">
-                                    @csrf @method('DELETE')
-                                    <button type="submit" class="btn btn-act btn-act-red">Hapus</button>
-                                </form>
+                                <button type="button" class="btn btn-act btn-act-red js-delete-confirm"
+                                        data-type="reporting-wo"
+                                        data-action="{{ route('reporting-wo.destroy', $row) }}"
+                                        data-no-order="{{ $row->no_order }}"
+                                        data-cid="{{ $row->cid ?: '—' }}"
+                                        data-teknisi="{{ $row->nama_teknisi }}"
+                                        data-status="{{ $row->status_wo ?: '—' }}">Hapus</button>
                             </td>
                         </tr>
                     @empty

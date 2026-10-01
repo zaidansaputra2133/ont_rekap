@@ -87,10 +87,14 @@
                 <div class="px-4 pt-3">
                     @foreach(['success' => 'check-circle-fill', 'info' => 'info-circle-fill', 'error' => 'exclamation-triangle-fill'] as $type => $icon)
                         @if(session($type))
-                            <div class="flash flash-{{ $type }} alert alert-dismissible fade show mb-2" role="alert">
-                                <i class="bi bi-{{ $icon }}"></i>
-                                <div>{{ session($type) }}</div>
-                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Tutup"></button>
+                            <div class="flash flash-{{ $type }} mb-2" role="alert">
+                                <div class="flash-content">
+                                    <i class="bi bi-{{ $icon }}"></i>
+                                    <span>{{ session($type) }}</span>
+                                </div>
+                                <button type="button" class="flash-close" onclick="this.closest('.flash').remove()" aria-label="Tutup">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
                             </div>
                         @endif
                     @endforeach
@@ -123,6 +127,34 @@
     </div>
 </div>
 @endauth
+
+{{-- ═══ MODAL VERIFIKASI HAPUS DATA ═══ --}}
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 420px;">
+        <form method="POST" action="" id="deleteConfirmForm" class="modal-content border-0" style="border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); overflow: hidden;">
+            @csrf
+            @method('DELETE')
+            <div class="d-flex align-items-start gap-3 p-4 pb-3">
+                <div class="del-icon-wrap">
+                    <i class="bi bi-exclamation-triangle"></i>
+                </div>
+                <div>
+                    <h3 class="fs-6 fw-bold text-dark mb-1" id="deleteConfirmTitle">Hapus Data?</h3>
+                    <p class="fs-12 text-muted-2 mb-0">Tindakan ini tidak dapat dibatalkan</p>
+                </div>
+            </div>
+            <div class="px-4 pb-3">
+                <div class="del-card" id="deleteConfirmBody">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+            <div class="px-4 pb-4 pt-1 d-flex align-items-center justify-content-end gap-2">
+                <button type="button" class="btn btn-del-cancel" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-del-confirm" id="deleteConfirmBtn">Ya, Hapus</button>
+            </div>
+        </form>
+    </div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
@@ -310,6 +342,100 @@
                 window.location.reload();
             }
         });
+
+        // Global handler untuk klik tombol konfirmasi hapus data
+        var delModalEl = document.getElementById('deleteConfirmModal');
+        var delModal = delModalEl ? new bootstrap.Modal(delModalEl) : null;
+        var delForm = document.getElementById('deleteConfirmForm');
+        var delTitle = document.getElementById('deleteConfirmTitle');
+        var delBody = document.getElementById('deleteConfirmBody');
+
+        document.addEventListener('click', function (e) {
+            var btn = e.target.closest('.js-delete-confirm');
+            if (!btn || !delModal) return;
+
+            var type = btn.dataset.type;
+            var action = btn.dataset.action;
+            delForm.action = action;
+
+            if (type === 'ont-masuk') {
+                delTitle.textContent = 'Hapus Data ONT?';
+                var sn = btn.dataset.sn || '—';
+                var brand = btn.dataset.brand || '—';
+                var tanggal = btn.dataset.tanggal || '—';
+                delBody.innerHTML =
+                    '<div class="del-row">' +
+                        '<span class="del-label">SN</span>' +
+                        '<span class="del-val font-mono fw-bold">' + sn + '</span>' +
+                    '</div>' +
+                    '<div class="del-row justify-content-between">' +
+                        '<div class="d-flex align-items-center">' +
+                            '<span class="del-label">Merek</span>' +
+                            (brand !== '—' ? '<span class="pill pill-blue">' + brand + '</span>' : '<span class="del-val">—</span>') +
+                        '</div>' +
+                        '<span class="fs-12 text-muted-2">' + tanggal + '</span>' +
+                    '</div>';
+            } else if (type === 'ont-keluar') {
+                delTitle.textContent = 'Hapus Transaksi Keluar?';
+                var sn = btn.dataset.sn || '—';
+                var teknisi = btn.dataset.teknisi || '—';
+                var tanggal = btn.dataset.tanggal || '—';
+                var kondisi = btn.dataset.kondisi || 'Normal';
+                var isRusak = kondisi.toLowerCase() === 'rusak';
+                delBody.innerHTML =
+                    '<div class="del-row">' +
+                        '<span class="del-label">SN</span>' +
+                        '<span class="del-val font-mono fw-bold">' + sn + '</span>' +
+                    '</div>' +
+                    '<div class="del-row">' +
+                        '<span class="del-label">Teknisi</span>' +
+                        '<span class="del-val fw-medium">' + teknisi + '</span>' +
+                    '</div>' +
+                    '<div class="del-row justify-content-between">' +
+                        '<div class="d-flex align-items-center">' +
+                            '<span class="del-label">Tgl Keluar</span>' +
+                            '<span class="del-val">' + tanggal + '</span>' +
+                        '</div>' +
+                        '<span class="pill ' + (isRusak ? 'pill-red' : 'pill-green') + '">' + kondisi + '</span>' +
+                    '</div>';
+            } else if (type === 'reporting-wo') {
+                delTitle.textContent = 'Hapus Data Work Order?';
+                var noOrder = btn.dataset.noOrder || '—';
+                var cid = btn.dataset.cid || '—';
+                var teknisi = btn.dataset.teknisi || '—';
+                var status = btn.dataset.status || '—';
+                var isSelesai = status.toLowerCase().indexOf('selesai') !== -1;
+                delBody.innerHTML =
+                    '<div class="del-row">' +
+                        '<span class="del-label">No. Order</span>' +
+                        '<span class="del-val font-mono fw-bold" style="color: #2563eb;">' + noOrder + '</span>' +
+                    '</div>' +
+                    '<div class="del-row">' +
+                        '<span class="del-label">CID</span>' +
+                        '<span class="del-val font-mono text-muted-2">' + cid + '</span>' +
+                    '</div>' +
+                    '<div class="del-row">' +
+                        '<span class="del-label">Teknisi</span>' +
+                        '<span class="del-val fw-medium">' + teknisi + '</span>' +
+                    '</div>' +
+                    '<div class="del-row">' +
+                        '<span class="del-label">Status</span>' +
+                        '<span class="del-val fw-semibold" style="color: ' + (isSelesai ? '#16a34a' : '#dc2626') + ';">' + status + '</span>' +
+                    '</div>';
+            }
+
+            delModal.show();
+        });
+
+        if (delForm) {
+            delForm.addEventListener('submit', function () {
+                var btn = document.getElementById('deleteConfirmBtn');
+                if (btn) {
+                    btn.disabled = true;
+                    btn.innerHTML = '<span class="spin"></span>Menghapus...';
+                }
+            });
+        }
     })();
 </script>
 @stack('scripts')

@@ -67,6 +67,7 @@ class DashboardController extends Controller
                 'not_installed' => $notInstalled,
                 'rusak' => $rusak,
                 'total_dibawa' => $totalDibawa,
+                'rasio' => $totalDibawa > 0 ? (int) round($installed / $totalDibawa * 100) : 0,
             ];
         }
 

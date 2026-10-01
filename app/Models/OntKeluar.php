@@ -54,6 +54,22 @@ class OntKeluar extends Model
     }
 
     /**
+     * Scope: filter nama teknisi (parsial)
+     */
+    public function scopeFilterTeknisi(Builder $query, ?string $teknisi): Builder
+    {
+        return $teknisi ? $query->where('nama_teknisi', 'like', "%{$teknisi}%") : $query;
+    }
+
+    /**
+     * Scope: filter tanggal keluar (YYYY-MM-DD)
+     */
+    public function scopeFilterTanggal(Builder $query, ?string $tanggal): Builder
+    {
+        return $tanggal ? $query->whereDate('tanggal_keluar', $tanggal) : $query;
+    }
+
+    /**
      * Scope: filter berdasarkan kondisi (normal / rusak)
      */
     public function scopeFilterStatus(Builder $query, ?string $status): Builder

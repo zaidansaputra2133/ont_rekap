@@ -98,6 +98,47 @@ class ReportingWo extends Model
             return $query;
         }
 
-        return $query->where('nama_teknisi', $teknisi);
+        return $query->where('nama_teknisi', 'like', "%{$teknisi}%");
+    }
+
+    /**
+     * Scope: filter tanggal selesai / SA (YYYY-MM-DD)
+     */
+    public function scopeFilterTanggal(Builder $query, ?string $tanggal): Builder
+    {
+        return $tanggal ? $query->whereDate('tanggal_sa', $tanggal) : $query;
+    }
+
+    /**
+     * Scope: filter vendor atau sektor (parsial)
+     */
+    public function scopeFilterVendor(Builder $query, ?string $vendor): Builder
+    {
+        if (! $vendor) {
+            return $query;
+        }
+
+        return $query->where(function ($q) use ($vendor) {
+            $q->where('vendor', 'like', "%{$vendor}%")
+                ->orWhere('sektor', 'like', "%{$vendor}%");
+        });
+    }
+
+    /**
+     * Scope: filter hasil auto-match (sesuai / beda)
+     */
+    public function scopeFilterMatch(Builder $query, ?string $match): Builder
+    {
+        if ($match === 'sesuai') {
+            return $query->where('cek_match', 'SESUAI');
+        }
+
+        if ($match === 'beda') {
+            return $query->where(function ($q) {
+                $q->whereNull('cek_match')->orWhere('cek_match', '!=', 'SESUAI');
+            });
+        }
+
+        return $query;
     }
 }

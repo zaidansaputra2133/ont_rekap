@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Imports\ReportingWoImport;
+use App\Models\OntKeluar;
 use App\Models\ReportingWo;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
@@ -22,11 +23,17 @@ class ReportingWoController extends Controller
         $search = $request->input('search');
         $status = $request->input('status');
         $teknisi = $request->input('teknisi');
+        $tanggal = $request->input('tanggal');
+        $vendor = $request->input('vendor');
+        $match = $request->input('match');
 
         $items = ReportingWo::query()
             ->search($search)
             ->filterStatus($status)
             ->filterTeknisi($teknisi)
+            ->filterTanggal($tanggal)
+            ->filterVendor($vendor)
+            ->filterMatch($match)
             ->orderBy('id', 'desc')
             ->paginate(15)
             ->withQueryString();
@@ -35,6 +42,7 @@ class ReportingWoController extends Controller
         $totalInstalled = ReportingWo::where('status_wo', 'like', '%selesai%')->count();
         $totalNotInstalled = max(0, $totalWo - $totalInstalled);
         $totalMatch = ReportingWo::where('cek_match', 'SESUAI')->count();
+        $totalKeluar = OntKeluar::count();
 
         // Daftar teknisi untuk dropdown filter
         $daftarTeknisi = ReportingWo::select('nama_teknisi')
@@ -49,10 +57,14 @@ class ReportingWoController extends Controller
             'totalInstalled',
             'totalNotInstalled',
             'totalMatch',
+            'totalKeluar',
             'daftarTeknisi',
             'search',
             'status',
-            'teknisi'
+            'teknisi',
+            'tanggal',
+            'vendor',
+            'match'
         ));
     }
 

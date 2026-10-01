@@ -21,17 +21,19 @@ class OntMasukController extends Controller
     {
         $search = $request->input('search');
         $brand = $request->input('brand');
+        $tanggal = $request->input('tanggal');
 
         $items = OntMasuk::query()
             ->search($search)
             ->filterBrand($brand)
+            ->filterTanggal($tanggal)
             ->orderBy('created_at', 'desc')
             ->paginate(15)
             ->withQueryString();
 
         $totalCount = OntMasuk::count();
 
-        return view('ont-masuk.index', compact('items', 'totalCount', 'search', 'brand'));
+        return view('ont-masuk.index', compact('items', 'totalCount', 'search', 'brand', 'tanggal'));
     }
 
     /**

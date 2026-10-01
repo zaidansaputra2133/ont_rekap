@@ -16,9 +16,13 @@ class OntKeluarController extends Controller
     {
         $search = $request->input('search');
         $status = $request->input('status');
+        $teknisi = $request->input('teknisi');
+        $tanggal = $request->input('tanggal');
 
         $items = OntKeluar::query()
             ->search($search)
+            ->filterTeknisi($teknisi)
+            ->filterTanggal($tanggal)
             ->filterStatus($status)
             ->orderBy('created_at', 'desc')
             ->paginate(15)
@@ -50,7 +54,7 @@ class OntKeluarController extends Controller
             ->orderBy('nama_teknisi')
             ->pluck('nama_teknisi');
 
-        return view('ont-keluar.index', compact('items', 'totalKeluar', 'search', 'status', 'availableOnts', 'availableBrands', 'daftarTeknisi'));
+        return view('ont-keluar.index', compact('items', 'totalKeluar', 'search', 'status', 'teknisi', 'tanggal', 'availableOnts', 'availableBrands', 'daftarTeknisi'));
     }
 
     /**

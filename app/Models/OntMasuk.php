@@ -47,6 +47,14 @@ class OntMasuk extends Model
     }
 
     /**
+     * Scope: filter berdasarkan tanggal masuk (YYYY-MM-DD)
+     */
+    public function scopeFilterTanggal(Builder $query, ?string $tanggal): Builder
+    {
+        return $tanggal ? $query->whereDate('tanggal_masuk', $tanggal) : $query;
+    }
+
+    /**
      * Cek apakah ONT ini sudah pernah keluar (ada di ont_keluars)
      */
     public function sudahKeluar(): bool

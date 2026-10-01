@@ -1,510 +1,203 @@
 @extends('layouts.app')
 
-@section('title', 'Data Report')
+@section('title', 'Reporting WO')
 
 @section('content')
-<!-- Header Page Minimal -->
-<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
-    <div>
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb mb-1 small">
-                <li class="breadcrumb-item"><a href="{{ url('/') }}" class="text-decoration-none text-muted">Home</a></li>
-                <li class="breadcrumb-item active text-dark fw-medium" aria-current="page">Data Report</li>
-            </ol>
-        </nav>
-        <h4 class="fw-bold text-dark mb-0">Data Report Work Order</h4>
-    </div>
-    <div class="d-flex flex-wrap gap-2">
-        <span class="badge bg-white border text-secondary px-3 py-1.5 rounded-2 small fw-normal">
-            Total Laporan: <strong class="text-dark">{{ number_format($totalWo) }}</strong> WO
-        </span>
-        <span class="badge bg-white border text-success px-3 py-1.5 rounded-2 small fw-normal">
-            INSTALLED: <strong class="text-success">{{ number_format($totalInstalled) }}</strong>
-        </span>
-        <span class="badge bg-white border text-muted px-3 py-1.5 rounded-2 small fw-normal">
-            NOT INSTALLED: <strong class="text-dark">{{ number_format($totalNotInstalled) }}</strong>
-        </span>
-    </div>
-</div>
+@php
+    $hasFilter = $search || $status || $teknisi || $tanggal || $vendor || $match;
 
-<!-- Forms & Specification Section -->
-<div class="row g-4 mb-4">
-    <!-- Form Upload File Excel Data Report WO -->
-    <div class="col-lg-5">
-        <div class="card card-custom h-100">
-            <div class="card-header bg-white border-bottom p-3">
-                <div class="d-flex align-items-center gap-2">
-                    <span class="brand-icon-wrapper" style="width: 26px; height: 26px; font-size: 0.85rem;">
-                        <i class="bi bi-file-earmark-spreadsheet"></i>
-                    </span>
-                    <h6 class="fw-bold mb-0 text-dark">Upload Data Report WO</h6>
+    $statusPill = function (?string $s) {
+        $v = strtolower(trim((string) $s));
+        if (str_contains($v, 'selesai')) return 'pill-green';
+        if (str_contains($v, 'gagal') || str_contains($v, 'batal') || str_contains($v, 'cancel')) return 'pill-red';
+        if ($v === '') return 'pill-gray';
+        return 'pill-amber';
+    };
+@endphp
+
+<div class="page">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+        <div>
+            <h1 class="page-title">Laporan Work Order Lapangan</h1>
+            <p class="page-sub">Rekap status WO instalasi &amp; auto-match serial number</p>
+        </div>
+        <button type="button" class="btn btn-brand px-3 py-2" data-bs-toggle="modal" data-bs-target="#uploadModal">
+            <i class="bi bi-cloud-arrow-up me-1"></i> Upload Laporan WO
+        </button>
+    </div>
+
+    {{-- Kartu info --}}
+    <div class="row g-3">
+        <div class="col-lg-6">
+            <div class="panel panel-pad h-100">
+                <h2 class="fs-13 fw-semibold text-dark mb-3">Logika Status Otomatis</h2>
+                <div class="d-flex flex-column gap-3">
+                    <div class="info-card info-green d-block">
+                        <b style="color: var(--green-dark);">INSTALLED</b>
+                        <p style="color: var(--green-dark);">Serial Number terdaftar di laporan WO dengan status <strong>"Work Order Selesai"</strong>. Unit terpasang di pelanggan.</p>
+                    </div>
+                    <div class="info-card info-amber d-block">
+                        <b>NOT INSTALLED</b>
+                        <p style="color: #b45309;">Unit pernah diambil oleh teknisi namun belum memiliki laporan WO Selesai.</p>
+                    </div>
                 </div>
             </div>
-
-            <div class="card-body p-3.5">
-                <form action="{{ route('reporting-wo.import') }}" method="POST" enctype="multipart/form-data" id="formUploadWo">
-                    @csrf
-                    <div class="upload-dropzone mb-3" onclick="document.getElementById('file_wo').click()">
-                        <i class="bi bi-cloud-arrow-up fs-2 d-block mb-1" style="color: var(--theme-red);"></i>
-                        <span class="d-block fw-medium small text-dark mb-1">Unggah Data Report WO (.xlsx / .csv)</span>
-                        <span class="text-muted" style="font-size: 0.75rem;">Klik untuk memilih file spreadsheet data report teknisi</span>
-                        <input type="file" class="d-none @error('file') is-invalid @enderror" id="file_wo" name="file" accept=".xlsx,.xls,.csv" onchange="updateFileName(this)">
-                    </div>
-
-                    @error('file')
-                        <div class="text-danger small mb-2"><i class="bi bi-exclamation-circle me-1"></i>{{ $message }}</div>
-                    @enderror
-
-                    <div id="selectedFileName" class="text-center small text-muted mb-3 d-none">
-                        <i class="bi bi-file-earmark-check text-success me-1"></i> <span class="fw-medium text-dark" id="fileNameDisplay"></span>
-                    </div>
-
-                    <div class="p-2.5 rounded-2 mb-3 border" style="background-color: #fafbfc; font-size: 0.73rem;">
-                        <div class="d-flex justify-content-between align-items-center mb-1">
-                            <span class="text-muted fw-medium">Format Kolom Header Spreadsheet:</span>
-                            <a href="{{ route('reporting-wo.template') }}" class="text-decoration-none fw-medium" style="color: var(--theme-red); font-size: 0.72rem;">
-                                <i class="bi bi-download"></i> Unduh Template
-                            </a>
-                        </div>
-                        <div class="font-monospace text-dark text-truncate" title="no_order | cid | serial_number | nama_teknisi | nik_teknisi | status_wo | tanggal_sa | vendor | sektor | cek_match">
-                            no_order | cid | serial_number | nama_teknisi | nik_teknisi | status_wo | tanggal_sa | vendor | sektor | cek_match
-                        </div>
-                    </div>
-
-                    <button type="submit" class="btn btn-custom-primary w-100 py-2 d-flex align-items-center justify-content-center gap-2">
-                        <i class="bi bi-upload"></i> Proses Import Data Report
-                    </button>
-                </form>
-            </div>
         </div>
-    </div>
-
-    <!-- Panduan Format & Logika Rekonsiliasi PRD -->
-    <div class="col-lg-7">
-        <div class="card card-custom h-100">
-            <div class="card-header bg-white border-bottom p-3 d-flex justify-content-between align-items-center">
-                <h6 class="fw-bold mb-0 text-dark">Ketentuan & Logika Rekonsiliasi (BR-04)</h6>
-                <a href="{{ route('reporting-wo.template') }}" class="btn btn-outline-theme btn-sm rounded-2 text-nowrap" style="font-size: 0.78rem;">
-                    <i class="bi bi-download me-1"></i> Unduh Template .xlsx
+        <div class="col-lg-6">
+            <div class="panel panel-pad h-100 d-flex flex-column">
+                <h2 class="fs-13 fw-semibold text-dark mb-3">Template Spreadsheet WO</h2>
+                <p class="fs-12 text-muted-2 mb-3" style="line-height:1.6;">Gunakan template berikut untuk mengimpor laporan WO. Pastikan header kolom sesuai persis.</p>
+                <div class="tpl-box mb-3" style="display:block;">
+                    <div class="fs-12 font-mono text-muted-2" style="line-height:1.7;">no_order | cid | serial_number | nama_teknisi | nik_teknisi | status_wo | tanggal_sa | vendor | sektor | cek_match</div>
+                </div>
+                <a href="{{ route('reporting-wo.template') }}" class="btn btn-soft-green mt-auto w-100">
+                    <i class="bi bi-download me-1"></i> Unduh Template WO
                 </a>
             </div>
-            <div class="card-body p-3">
-                <div class="row g-3 mb-3">
-                    <div class="col-sm-6">
-                        <div class="p-2.5 rounded-2 border h-100" style="background-color: #fafbfc;">
-                            <div class="d-flex align-items-center gap-2 mb-1">
-                                <span class="badge badge-soft-success rounded-1 px-2 py-0.5" style="font-size: 0.72rem;">INSTALLED</span>
-                                <span class="fw-semibold text-dark small">Perangkat Terpasang</span>
-                            </div>
-                            <p class="text-muted mb-0" style="font-size: 0.76rem; line-height: 1.4;">
-                                Serial Number terdaftar di laporan WO dengan status <strong>"Work Order Selesai"</strong>. Unit terpasang di pelanggan.
-                            </p>
-                        </div>
-                    </div>
-                    <div class="col-sm-6">
-                        <div class="p-2.5 rounded-2 border h-100" style="background-color: #fafbfc;">
-                            <div class="d-flex align-items-center gap-2 mb-1">
-                                <span class="badge badge-soft-secondary rounded-1 px-2 py-0.5" style="font-size: 0.72rem;">NOT INSTALLED</span>
-                                <span class="fw-semibold text-dark small">Belum Terpasang</span>
-                            </div>
-                            <p class="text-muted mb-0" style="font-size: 0.76rem; line-height: 1.4;">
-                                Unit pernah diambil oleh teknisi namun belum memiliki laporan WO Selesai.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="p-2.5 rounded-2 border text-muted" style="background-color: #fafbfc; font-size: 0.75rem; line-height: 1.4;">
-                    <strong class="text-dark d-block mb-1">Sinkronisasi Tabel Teknisi:</strong>
-                    Data yang diimpor akan otomatis memperbarui kolom <em>Installed</em> dan <em>Not Installed</em> pada tabel performa teknisi secara real-time.
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Table Section: List Data Report Work Order (Filter & Pagination) -->
-<div class="card card-custom" id="tabel-rekap-wo">
-    <div class="card-header bg-white border-bottom p-3">
-        <div class="row g-2 align-items-center">
-            <div class="col-xl-3 col-lg-3 col-md-12">
-                <h6 class="fw-bold mb-0 text-dark">Daftar Data Report Work Order</h6>
-            </div>
-            <div class="col-xl-9 col-lg-9 col-md-12">
-                <div class="d-flex flex-wrap gap-2 justify-content-md-end align-items-center">
-                    <!-- Quick Status Pills -->
-                    <div class="btn-group btn-group-sm status-pills-group" role="group" aria-label="Filter Status">
-                        <button type="button" class="btn btn-status-pill {{ empty($status) ? 'active' : '' }}" data-status="">Semua Status</button>
-                        <button type="button" class="btn btn-status-pill {{ ($status ?? '') == 'selesai' ? 'active' : '' }}" data-status="selesai">WO Selesai</button>
-                        <button type="button" class="btn btn-status-pill {{ ($status ?? '') == 'belum_selesai' ? 'active' : '' }}" data-status="belum_selesai">Belum Selesai</button>
-                    </div>
-
-                    <!-- Dropdown Status (Synced) -->
-                    <select id="filterStatusSelect" class="form-select form-select-sm d-none d-md-block" style="max-width: 155px;">
-                        <option value="" {{ empty($status) ? 'selected' : '' }}>Semua Status</option>
-                        <option value="selesai" {{ ($status ?? '') == 'selesai' ? 'selected' : '' }}>Work Order Selesai</option>
-                        <option value="belum_selesai" {{ ($status ?? '') == 'belum_selesai' ? 'selected' : '' }}>Belum Selesai</option>
-                    </select>
-
-                    <!-- Filter Teknisi (Auto-submit on change) -->
-                    <select id="filterTeknisiSelect" class="form-select form-select-sm" style="max-width: 155px;">
-                        <option value="">Semua Teknisi</option>
-                        @foreach($daftarTeknisi as $t)
-                            <option value="{{ $t }}" {{ ($teknisi ?? '') == $t ? 'selected' : '' }}>{{ $t }}</option>
-                        @endforeach
-                    </select>
-
-                    <!-- Search Input -->
-                    <form action="{{ route('reporting-wo.index') }}" method="GET" id="formFilterWo" class="d-flex gap-1 align-items-center m-0">
-                        <input type="hidden" name="status" id="filterStatusInput" value="{{ $status ?? '' }}">
-                        <input type="hidden" name="teknisi" id="filterTeknisiInputVal" value="{{ $teknisi ?? '' }}">
-                        <div class="input-group input-group-sm" style="max-width: 190px;">
-                            <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-search"></i></span>
-                            <input type="text" name="search" id="filterSearchInput" class="form-control border-start-0" placeholder="Cari WO, SN, CID..." value="{{ $search ?? '' }}">
-                        </div>
-                        @if($search || $status || $teknisi)
-                            <button type="button" id="btnResetFilterWo" class="btn btn-light btn-sm text-muted px-2 border" title="Reset Filter">
-                                <i class="bi bi-x-circle"></i>
-                            </button>
-                        @endif
-                    </form>
-                </div>
-            </div>
         </div>
     </div>
 
-    <div class="table-responsive">
-        <table class="table table-custom table-hover align-middle">
-            <thead>
-                <tr>
-                    <th class="text-center" style="width: 50px;">No</th>
-                    <th>No. Order</th>
-                    <th>CID</th>
-                    <th>Serial Number (SN)</th>
-                    <th>Teknisi</th>
-                    <th>Status WO</th>
-                    <th>Tgl Selesai (SA)</th>
-                    <th>Vendor / Sektor</th>
-                    <th>Auto-Match</th>
-                    <th class="text-center" style="width: 85px;">Aksi</th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse($items as $item)
-                <tr>
-                    <td class="text-center text-muted small">{{ $items->firstItem() + $loop->index }}</td>
-                    <td>
-                        <span class="font-monospace fw-semibold text-dark small">{{ $item->no_order }}</span>
-                    </td>
-                    <td>
-                        @if($item->cid)
-                            <span class="font-monospace text-muted small">{{ $item->cid }}</span>
-                        @else
-                            <span class="text-muted small">—</span>
-                        @endif
-                    </td>
-                    <td>
-                        <div class="d-flex align-items-center gap-1.5">
-                            <span class="font-monospace fw-medium text-dark">{{ $item->serial_number }}</span>
-                            <button type="button" class="btn btn-sm btn-link text-muted p-0 ms-1" title="Salin SN"
-                                onclick="navigator.clipboard.writeText('{{ $item->serial_number }}'); this.innerHTML='<i class=\'bi bi-clipboard-check\' style=\'font-size:0.75rem;\'></i>'">
-                                <i class="bi bi-clipboard" style="font-size: 0.75rem;"></i>
-                            </button>
-                        </div>
-                    </td>
-                    <td>
-                        <div class="fw-medium text-dark small">{{ $item->nama_teknisi }}</div>
-                        @if($item->nik_teknisi)
-                            <div class="text-muted" style="font-size: 0.72rem;">NIK: {{ $item->nik_teknisi }}</div>
-                        @endif
-                    </td>
-                    <td>
-                        @if($item->isInstalled())
-                            <span class="badge badge-soft-success px-2 py-1 rounded-1 small">
-                                <i class="bi bi-check2-circle me-1"></i> {{ $item->status_wo }}
-                            </span>
-                        @else
-                            <span class="badge badge-soft-secondary px-2 py-1 rounded-1 small">
-                                <i class="bi bi-clock me-1"></i> {{ $item->status_wo }}
-                            </span>
-                        @endif
-                    </td>
-                    <td>
-                        <span class="text-dark small">
-                            {{ $item->tanggal_sa ? $item->tanggal_sa->format('d M Y') : '—' }}
-                        </span>
-                    </td>
-                    <td>
-                        <div class="text-dark small">{{ $item->vendor ?? '—' }}</div>
-                        @if($item->sektor)
-                            <div class="text-muted" style="font-size: 0.72rem;">Sektor: {{ $item->sektor }}</div>
-                        @endif
-                    </td>
-                    <td>
-                        @if(strtoupper($item->cek_match) === 'SESUAI')
-                            <span class="badge badge-soft-success rounded-1 px-2 py-0.5" style="font-size: 0.72rem;">
-                                <i class="bi bi-patch-check me-0.5"></i> SESUAI
-                            </span>
-                        @elseif($item->cek_match)
-                            <span class="badge badge-soft-secondary rounded-1 px-2 py-0.5" style="font-size: 0.72rem;">
-                                {{ $item->cek_match }}
-                            </span>
-                        @else
-                            <span class="text-muted small">—</span>
-                        @endif
-                    </td>
-                    <td class="text-center">
-                        <form action="{{ route('reporting-wo.destroy', $item->id) }}" method="POST"
-                            onsubmit="return confirm('Hapus data laporan WO {{ $item->no_order }}?')">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit" class="btn btn-sm btn-link text-danger p-0" title="Hapus Laporan">
-                                <i class="bi bi-x-lg"></i>
-                            </button>
-                        </form>
-                    </td>
-                </tr>
-                @empty
-                <tr>
-                    <td colspan="10" class="text-center py-5 text-muted small">
-                        <i class="bi bi-file-earmark-spreadsheet fs-4 d-block mb-2 text-muted opacity-50"></i>
-                        Belum ada data laporan Work Order (WO).
-                        <div class="mt-2">
-                            <span class="text-muted" style="font-size: 0.78rem;">Silakan gunakan form di atas untuk mengunggah file Excel <strong>reporting_wo.xlsx</strong>.</span>
-                        </div>
-                    </td>
-                </tr>
-                @endforelse
-            </tbody>
-        </table>
-    </div>
+    {{-- Tabel --}}
+    <form id="filterForm" method="GET" action="{{ route('reporting-wo.index') }}"></form>
 
-    <!-- Pagination Footer -->
-    <div class="card-footer bg-white border-top p-2.5 d-flex flex-column flex-sm-row justify-content-between align-items-center gap-2">
-        <span class="text-muted small" style="font-size: 0.78rem;">
-            @if($items->total() > 0)
-                Menampilkan {{ $items->firstItem() }}–{{ $items->lastItem() }} dari {{ $items->total() }} data
-            @else
-                Tidak ada data ditemukan
-            @endif
-        </span>
-        <nav aria-label="Page navigation">
-            {{ $items->links('pagination::bootstrap-5') }}
-        </nav>
+    <div class="panel" id="tabelPanel">
+        <div class="panel-head">
+            <div class="d-flex align-items-center flex-wrap gap-3">
+                <h2 class="panel-title">Data Work Order</h2>
+                <span class="pill pill-blue">Total Keluar: {{ number_format($totalKeluar, 0, ',', '.') }} unit</span>
+            </div>
+            <span class="fs-12 text-muted-2">{{ number_format($items->total(), 0, ',', '.') }} record</span>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table tbl">
+                <thead>
+                    <tr>
+                        <th>No</th><th>No. Order</th><th>CID</th><th>Serial Number (SN)</th><th>Teknisi</th>
+                        <th>Status WO</th><th>Tgl Selesai (SA)</th><th>Vendor / Sektor</th><th>Auto-Match</th><th>Aksi</th>
+                    </tr>
+                    <tr class="filter-row">
+                        <td></td>
+                        <td colspan="3">
+                            <input type="text" name="search" value="{{ $search }}" form="filterForm" data-autosubmit
+                                   class="form-control form-control-xs" placeholder="Cari No. Order / CID / SN..." style="min-width: 220px;" autocomplete="off">
+                        </td>
+                        <td><input type="text" name="teknisi" value="{{ $teknisi }}" form="filterForm" data-autosubmit class="form-control form-control-xs" placeholder="Cari..." style="min-width:100px;" autocomplete="off"></td>
+                        <td>
+                            <select name="status" form="filterForm" data-autosubmit class="form-select form-select-xs" style="min-width:120px;">
+                                <option value="">Semua</option>
+                                <option value="selesai" @selected($status === 'selesai')>Work Order Selesai</option>
+                                <option value="belum_selesai" @selected($status === 'belum_selesai')>Belum Selesai</option>
+                            </select>
+                        </td>
+                        <td><input type="date" name="tanggal" value="{{ $tanggal }}" form="filterForm" data-autosubmit class="form-control form-control-xs"></td>
+                        <td><input type="text" name="vendor" value="{{ $vendor }}" form="filterForm" data-autosubmit class="form-control form-control-xs" placeholder="Cari..." style="min-width:90px;" autocomplete="off"></td>
+                        <td>
+                            <select name="match" form="filterForm" data-autosubmit class="form-select form-select-xs">
+                                <option value="">Semua</option>
+                                <option value="sesuai" @selected($match === 'sesuai')>Match</option>
+                                <option value="beda" @selected($match === 'beda')>Tidak</option>
+                            </select>
+                        </td>
+                        <td>@if($hasFilter)<a href="{{ route('reporting-wo.index') }}" class="link-reset">Reset</a>@endif</td>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($items as $row)
+                        <tr>
+                            <td class="cell-no">{{ $items->firstItem() + $loop->index }}</td>
+                            <td class="cell-mono text-nowrap" style="color: #2563eb;">{{ $row->no_order }}</td>
+                            <td class="cell-small font-mono text-nowrap">{{ $row->cid ?: '—' }}</td>
+                            <td class="cell-mono">{{ $row->serial_number }}</td>
+                            <td class="fw-medium" style="color: var(--ink-2);">{{ $row->nama_teknisi }}</td>
+                            <td><span class="pill {{ $statusPill($row->status_wo) }}">{{ $row->status_wo ?: '—' }}</span></td>
+                            <td class="cell-small text-nowrap">{{ $row->tanggal_sa?->format('d-m-Y') ?? '—' }}</td>
+                            <td class="cell-small" style="color: #4b5563;">
+                                {{ $row->vendor ?: '—' }}
+                                @if($row->sektor)<div class="fs-11 text-muted-2">{{ $row->sektor }}</div>@endif
+                            </td>
+                            <td>
+                                @if(strtoupper((string) $row->cek_match) === 'SESUAI')
+                                    <span class="fs-12 fw-semibold tone-green text-nowrap"><i class="bi bi-check2"></i> Match</span>
+                                @else
+                                    <span class="fs-12 fw-semibold text-muted-2 text-nowrap">— Tidak</span>
+                                @endif
+                            </td>
+                            <td>
+                                <form method="POST" action="{{ route('reporting-wo.destroy', $row) }}" class="m-0"
+                                      data-confirm="Hapus laporan WO {{ $row->no_order }}?">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="btn btn-act btn-act-red">Hapus</button>
+                                </form>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="10" class="empty" style="padding: 3rem 1.25rem;">
+                                <i class="bi bi-clipboard2 d-block fs-1 mb-2"></i>
+                                {{ $hasFilter ? 'Tidak ada data WO yang sesuai filter.' : 'Belum ada data WO. Upload laporan WO untuk memulai.' }}
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+
+        @if($items->hasPages())
+            <div class="panel-foot">
+                <span>Menampilkan {{ $items->firstItem() }}–{{ $items->lastItem() }} dari {{ $items->total() }} record</span>
+                {{ $items->links() }}
+            </div>
+        @endif
     </div>
 </div>
 
+{{-- Modal upload --}}
+<div class="modal fade" id="uploadModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 448px;">
+        <form method="POST" action="{{ route('reporting-wo.import') }}" enctype="multipart/form-data" class="modal-content" id="uploadForm">
+            @csrf
+            <div class="modal-header">
+                <h2 class="modal-title">Upload Laporan Work Order</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+            </div>
+            <div class="modal-body d-flex flex-column gap-3">
+                <label class="dropzone m-0" style="padding: 2.5rem 1rem;">
+                    <i class="bi bi-clipboard2-data" style="font-size: 2.25rem;"></i>
+                    <span class="dropzone-name" id="uploadName">Klik untuk pilih file WO</span>
+                    <span class="fs-12 text-muted-2 mt-1">.xlsx / .xls / .csv (maks. 20 MB)</span>
+                    <input type="file" name="file" id="uploadFile" accept=".xlsx,.xls,.csv" required>
+                </label>
+                @error('file')<div class="field-error m-0">{{ $message }}</div>@enderror
+
+                <div class="info-card info-blue d-block fs-12" style="line-height:1.6;">
+                    Kolom yang dibutuhkan: <span class="font-mono fw-semibold">no_order, serial_number, nama_teknisi, status_wo, tanggal_sa</span>.
+                    Kolom opsional: <span class="font-mono">cid, nik_teknisi, vendor, sektor, cek_match</span>.
+                    <div class="mt-1">No. Order yang sudah ada akan diperbarui. SN yang belum terdaftar di ONT Masuk dilewati.</div>
+                </div>
+            </div>
+            <div class="modal-footer justify-content-end">
+                <button type="button" class="btn btn-gray" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-brand" id="uploadBtn">Proses Import</button>
+            </div>
+        </form>
+    </div>
+</div>
 @endsection
-
-@push('styles')
-<style>
-    .btn-status-pill {
-        font-size: 0.78rem;
-        font-weight: 500;
-        padding: 0.28rem 0.68rem;
-        border-color: #dee2e6;
-        color: #475569;
-        background-color: #fff;
-        transition: all 0.15s ease-in-out;
-    }
-    .btn-status-pill:hover {
-        background-color: #f1f5f9;
-        border-color: #cbd5e1;
-        color: #0f172a;
-    }
-    .btn-status-pill.active {
-        background-color: var(--theme-red, #b91c1c) !important;
-        border-color: var(--theme-red, #b91c1c) !important;
-        color: #ffffff !important;
-        font-weight: 600;
-        box-shadow: 0 1px 3px rgba(185, 28, 28, 0.25);
-    }
-    .table-loading-fade {
-        opacity: 0.45;
-        pointer-events: none;
-        transition: opacity 0.15s ease;
-    }
-</style>
-@endpush
 
 @push('scripts')
 <script>
-    function updateFileName(input) {
-        if (input.files && input.files[0]) {
-            document.getElementById('fileNameDisplay').textContent = input.files[0].name;
-            document.getElementById('selectedFileName').classList.remove('d-none');
-        }
-    }
-
-    // Auto dismiss alert flash messages
-    setTimeout(() => {
-        document.querySelectorAll('.alert').forEach(el => {
-            const bsAlert = bootstrap.Alert.getOrCreateInstance(el);
-            bsAlert.close();
-        });
-    }, 4000);
-
-    // ==============================================================
-    // AJAX FILTERING DATA REPORT WO (LANGSUNG FILTER & HALAMAN TIDAK NAIK)
-    // ==============================================================
-    function initTabelWoFilter() {
-        const tableCard = document.getElementById('tabel-rekap-wo');
-        if (!tableCard) return;
-
-        // Klik Pill Status (Semua, Selesai, Belum Selesai) -> langsung filter
-        const pills = tableCard.querySelectorAll('.btn-status-pill');
-        pills.forEach(pill => {
-            pill.addEventListener('click', function (e) {
-                e.preventDefault();
-                const status = this.getAttribute('data-status') || '';
-                const teknisi = document.getElementById('filterTeknisiSelect')?.value || '';
-                const search = document.getElementById('filterSearchInput')?.value || '';
-                applyWoFilter({ status: status, teknisi: teknisi, search: search });
-            });
-        });
-
-        // Dropdown Status -> langsung filter saat diganti
-        const statusSelect = document.getElementById('filterStatusSelect');
-        if (statusSelect) {
-            statusSelect.addEventListener('change', function () {
-                const status = this.value;
-                const teknisi = document.getElementById('filterTeknisiSelect')?.value || '';
-                const search = document.getElementById('filterSearchInput')?.value || '';
-                applyWoFilter({ status: status, teknisi: teknisi, search: search });
-            });
-        }
-
-        // Dropdown Teknisi -> langsung filter saat diganti
-        const teknisiSelect = document.getElementById('filterTeknisiSelect');
-        if (teknisiSelect) {
-            teknisiSelect.addEventListener('change', function () {
-                const status = document.getElementById('filterStatusInput')?.value || 
-                               document.getElementById('filterStatusSelect')?.value || '';
-                const teknisi = this.value;
-                const search = document.getElementById('filterSearchInput')?.value || '';
-                applyWoFilter({ status: status, teknisi: teknisi, search: search });
-            });
-        }
-
-        // Form Submit Search (Enter pada input pencarian)
-        const formFilter = document.getElementById('formFilterWo');
-        if (formFilter) {
-            formFilter.addEventListener('submit', function (e) {
-                e.preventDefault();
-                const status = document.getElementById('filterStatusInput')?.value || 
-                               document.getElementById('filterStatusSelect')?.value || '';
-                const teknisi = document.getElementById('filterTeknisiSelect')?.value || '';
-                const search = document.getElementById('filterSearchInput')?.value || '';
-                applyWoFilter({ status: status, teknisi: teknisi, search: search });
-            });
-        }
-
-        // Tombol Reset Filter
-        const resetBtn = document.getElementById('btnResetFilterWo');
-        if (resetBtn) {
-            resetBtn.addEventListener('click', function (e) {
-                e.preventDefault();
-                applyWoFilter({ status: '', teknisi: '', search: '' });
-            });
-        }
-
-        // Intercept Pagination Links agar halaman tidak reload & tidak loncat ke atas
-        const paginationLinks = tableCard.querySelectorAll('.pagination a');
-        paginationLinks.forEach(link => {
-            link.addEventListener('click', function (e) {
-                e.preventDefault();
-                if (this.href) {
-                    applyWoFilterFromUrl(this.href);
-                }
-            });
-        });
-    }
-
-    function applyWoFilter(params) {
-        const baseUrl = "{{ route('reporting-wo.index') }}";
-        const url = new URL(baseUrl, window.location.origin);
-
-        if (params.status) {
-            url.searchParams.set('status', params.status);
-        }
-        if (params.teknisi) {
-            url.searchParams.set('teknisi', params.teknisi);
-        }
-        if (params.search) {
-            url.searchParams.set('search', params.search);
-        }
-
-        applyWoFilterFromUrl(url.toString());
-    }
-
-    function applyWoFilterFromUrl(fullUrl) {
-        const tableCard = document.getElementById('tabel-rekap-wo');
-        if (!tableCard) {
-            window.location.href = fullUrl;
-            return;
-        }
-
-        // Simpan posisi scroll sebelum AJAX agar halaman TIDAK LOMPAT KE ATAS
-        const currentScrollY = window.scrollY;
-
-        const tableContent = tableCard.querySelector('.table-responsive') || tableCard;
-        tableContent.classList.add('table-loading-fade');
-
-        fetch(fullUrl, {
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        })
-        .then(response => {
-            if (!response.ok) throw new Error('Network error');
-            return response.text();
-        })
-        .then(html => {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, 'text/html');
-            const newCard = doc.getElementById('tabel-rekap-wo');
-
-            if (newCard) {
-                tableCard.innerHTML = newCard.innerHTML;
-                window.history.pushState(null, '', fullUrl);
-
-                // Pertahankan posisi scroll user tanpa berpindah
-                window.scrollTo({ top: currentScrollY, behavior: 'instant' });
-
-                // Re-bind event listener pada elemen baru
-                initTabelWoFilter();
-            } else {
-                window.location.href = fullUrl;
-            }
-        })
-        .catch(err => {
-            console.error('Filter error:', err);
-            window.location.href = fullUrl;
-        })
-        .finally(() => {
-            tableContent.classList.remove('table-loading-fade');
-        });
-    }
-
-    // Tangani tombol browser back / forward
-    window.addEventListener('popstate', function () {
-        applyWoFilterFromUrl(window.location.href);
+(function () {
+    var file = document.getElementById('uploadFile'), name = document.getElementById('uploadName');
+    file.addEventListener('change', function () { name.textContent = file.files[0] ? file.files[0].name : 'Klik untuk pilih file WO'; });
+    document.getElementById('uploadForm').addEventListener('submit', function () {
+        var b = document.getElementById('uploadBtn');
+        b.disabled = true;
+        b.innerHTML = '<span class="spin"></span>Memproses...';
     });
-
-    // Inisialisasi saat load pertama kali
-    document.addEventListener('DOMContentLoaded', function () {
-        initTabelWoFilter();
-
-        // Jika halaman dibuka langsung via URL berparameter filter / pagination, scroll ke tabel
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.has('status') || urlParams.has('teknisi') || urlParams.has('search') || urlParams.has('page') || window.location.hash === '#tabel-rekap-wo') {
-            const tableElement = document.getElementById('tabel-rekap-wo');
-            if (tableElement) {
-                tableElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-        }
-
-    });
+    @if($errors->has('file'))
+        new bootstrap.Modal(document.getElementById('uploadModal')).show();
+    @endif
+})();
 </script>
 @endpush
-

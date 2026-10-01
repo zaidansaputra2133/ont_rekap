@@ -3,701 +3,399 @@
 @section('title', 'ONT Masuk')
 
 @section('content')
-<!-- Header Page Minimal -->
-<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+@php
+    $brandOptions = ['ZTE', 'Huawei', 'Fiberhome', 'Nokia', 'Lainnya'];
+    $isEditing = old('_method') === 'PUT' && old('_edit_id');
+    $hasFilter = $search || $brand || $tanggal;
+@endphp
+
+<div class="page page-narrow">
     <div>
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb mb-1 small">
-                <li class="breadcrumb-item"><a href="{{ url('/') }}" class="text-decoration-none text-muted">Home</a></li>
-                <li class="breadcrumb-item active text-dark fw-medium" aria-current="page">ONT Masuk</li>
-            </ol>
-        </nav>
-        <h4 class="fw-bold text-dark mb-0">Inventaris ONT Masuk</h4>
+        <h1 class="page-title">Inventaris ONT Masuk</h1>
+        <p class="page-sub">Pencatatan penerimaan unit ONT dari supplier / gudang pusat</p>
     </div>
-    <div>
-        <span class="badge bg-white border text-secondary px-3 py-1.5 rounded-2 small fw-normal">
-            Total Gudang: <strong class="text-dark">{{ $totalCount }}</strong> Unit
-        </span>
-    </div>
-</div>
 
-{{-- Flash Messages --}}
-@if(session('success'))
-<div class="alert alert-success alert-dismissible fade show border-0 rounded-2 mb-4 py-2 px-3" role="alert" style="font-size:0.85rem;">
-    <i class="bi bi-check-circle me-1"></i> {{ session('success') }}
-    <button type="button" class="btn-close btn-sm" data-bs-dismiss="alert"></button>
-</div>
-@endif
+    {{-- ═══ Form input ═══ --}}
+    <div class="panel panel-pad">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+            <h2 class="panel-title">Input Data ONT</h2>
+            <button type="button" class="btn btn-line-green btn-sm px-3 py-2" data-bs-toggle="modal" data-bs-target="#importModal">
+                <i class="bi bi-file-earmark-spreadsheet me-1"></i> Import Spreadsheet
+            </button>
+        </div>
 
-@if($errors->any())
-<div class="alert alert-danger alert-dismissible fade show border-0 rounded-2 mb-4 py-2 px-3" role="alert" style="font-size:0.85rem;">
-    <i class="bi bi-exclamation-circle me-1"></i>
-    @foreach($errors->all() as $error)
-        {{ $error }}<br>
-    @endforeach
-    <button type="button" class="btn-close btn-sm" data-bs-dismiss="alert"></button>
-</div>
-@endif
-
-<!-- Forms Section (Manual & Bulk Import) -->
-<div class="row g-4 mb-4">
-    <!-- Card Input: Tabs Manual vs Import Excel -->
-    <div class="col-lg-5">
-        <div class="card card-custom h-100">
-            <div class="card-header bg-white border-bottom p-2.5">
-                <ul class="nav nav-pills nav-fill" id="ontMasukTab" role="tablist">
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link {{ $errors->hasAny(['serial_number','tanggal_masuk','brand']) || old('_tab') == 'manual' ? 'active' : 'active' }} py-1.5 rounded-2 small" id="manual-tab" data-bs-toggle="tab" data-bs-target="#manual-pane" type="button" role="tab">
-                            <i class="bi bi-pencil me-1"></i> Input Manual
-                        </button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link py-1.5 rounded-2 small {{ old('_tab') == 'excel' ? 'active' : '' }}" id="excel-tab" data-bs-toggle="tab" data-bs-target="#excel-pane" type="button" role="tab">
-                            <i class="bi bi-file-earmark-spreadsheet me-1"></i> Import Spreadsheet
-                        </button>
-                    </li>
-                </ul>
-            </div>
-
-            <div class="card-body p-3.5">
-                <div class="tab-content" id="ontMasukTabContent">
-                    <!-- Tab 1: Input Manual Single Item -->
-                    <div class="tab-pane fade show active" id="manual-pane" role="tabpanel">
-                        <form action="{{ route('ont-masuk.store') }}" method="POST" id="formManualInput" autocomplete="off">
-                            @csrf
-                            <div class="mb-3">
-                                <label for="serial_number" class="form-label">Serial Number (SN) <span class="text-muted small">*</span></label>
-                                <input type="text"
-                                    autocomplete="off"
-                                    class="form-control font-monospace @error('serial_number') is-invalid @enderror"
-                                    id="serial_number" name="serial_number"
-                                    placeholder="Contoh: ZTEGC3FA7280"
-                                    value="{{ old('serial_number') }}"
-                                    required autofocus>
-                                @error('serial_number')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                                <div class="form-text text-muted" style="font-size: 0.74rem;">Mendukung input manual atau barcode scanner USB.</div>
-                            </div>
-
-                            <div class="mb-3">
-                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                    <label for="brand" class="form-label mb-0">Merek / Vendor</label>
-                                    <span id="brandAutoBadge" class="badge bg-success-subtle text-success border border-success-subtle px-1.5 py-0.5 rounded-1 d-none" style="font-size: 0.72rem;">
-                                        <i class="bi bi-magic me-1"></i>Otomatis: <span id="brandAutoName"></span>
-                                    </span>
-                                </div>
-                                <select class="form-select @error('brand') is-invalid @enderror" id="brand" name="brand">
-                                    <option value="" {{ old('brand') == '' ? 'selected' : '' }}>-- Pilih Merek (Opsional) --</option>
-                                    <option value="ZTE" {{ old('brand') == 'ZTE' ? 'selected' : '' }}>ZTE</option>
-                                    <option value="Huawei" {{ old('brand') == 'Huawei' ? 'selected' : '' }}>Huawei</option>
-                                    <option value="Fiberhome" {{ old('brand') == 'Fiberhome' ? 'selected' : '' }}>Fiberhome</option>
-                                    <option value="Nokia" {{ old('brand') == 'Nokia' ? 'selected' : '' }}>Nokia</option>
-                                    <option value="Lainnya" {{ old('brand') == 'Lainnya' ? 'selected' : '' }}>Lainnya</option>
-                                </select>
-                            </div>
-
-                            <div class="mb-4">
-                                <label for="tanggal_masuk" class="form-label">Tanggal Penerimaan <span class="text-muted small">*</span></label>
-                                <input type="date"
-                                    class="form-control @error('tanggal_masuk') is-invalid @enderror"
-                                    id="tanggal_masuk" name="tanggal_masuk"
-                                    value="{{ old('tanggal_masuk', date('Y-m-d')) }}"
-                                    required>
-                                @error('tanggal_masuk')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-
-                            <button type="submit" class="btn btn-custom-primary w-100 py-2 d-flex align-items-center justify-content-center gap-2">
-                                <i class="bi bi-check2"></i> Simpan Unit ONT
-                            </button>
-                        </form>
-                    </div>
-
-                    <!-- Tab 2: Upload Excel/CSV Bulk -->
-                    <div class="tab-pane fade" id="excel-pane" role="tabpanel">
-                        <form action="{{ route('ont-masuk.import') }}" method="POST" enctype="multipart/form-data" id="formImportExcel">
-                            @csrf
-                            <div class="upload-dropzone mb-3" onclick="document.getElementById('file_excel').click()">
-                                <i class="bi bi-cloud-arrow-up fs-2 d-block mb-1" style="color: var(--theme-red);"></i>
-                                <span class="d-block fw-medium small text-dark mb-1">Unggah File .xlsx / .csv</span>
-                                <span class="text-muted" style="font-size: 0.75rem;">Klik untuk memilih spreadsheet</span>
-                                <input type="file" class="d-none @error('file') is-invalid @enderror" id="file_excel" name="file" accept=".xlsx,.xls,.csv" onchange="updateFileName(this)">
-                            </div>
-                            @error('file')
-                                <div class="text-danger small mb-2"><i class="bi bi-exclamation-circle me-1"></i>{{ $message }}</div>
-                            @enderror
-                            <div id="selectedFileName" class="text-center small text-muted mb-3 d-none">
-                                <i class="bi bi-file-earmark-check text-success me-1"></i> <span class="fw-medium text-dark" id="fileNameDisplay"></span>
-                            </div>
-
-                            <div class="p-2.5 rounded-2 mb-3 border" style="background-color: #fafbfc; font-size: 0.75rem;">
-                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                    <span class="text-muted">Header Kolom Spreadsheet:</span>
-                                    <a href="{{ route('ont-masuk.template') }}" class="text-decoration-none fw-medium" style="color: var(--theme-red); font-size: 0.72rem;">
-                                        <i class="bi bi-download"></i> Unduh Template
-                                    </a>
-                                </div>
-                                <div class="font-monospace text-dark">serial_number | brand | tanggal_masuk</div>
-                            </div>
-
-                            <button type="submit" class="btn btn-custom-primary w-100 py-2 d-flex align-items-center justify-content-center gap-2">
-                                <i class="bi bi-upload"></i> Proses Import
-                            </button>
-                        </form>
-                    </div>
+        <form method="POST" action="{{ route('ont-masuk.store') }}" id="formTambah">
+            @csrf
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label for="serial_number" class="lbl">Serial Number (SN)</label>
+                    <input type="text" id="serial_number" name="serial_number" value="{{ $isEditing ? '' : old('serial_number') }}"
+                           autofocus autocomplete="off" placeholder="Scan barcode atau ketik manual..."
+                           class="form-control @if(!$isEditing) @error('serial_number') is-invalid @enderror @endif">
+                    <p class="hint"><i class="bi bi-check2"></i> Mendukung input manual &amp; scan barcode</p>
+                </div>
+                <div class="col-md-4">
+                    <label for="brand" class="lbl d-flex align-items-center justify-content-between">
+                        <span>Merek / Vendor</span>
+                        <span id="brandAutoBadge" class="badge bg-success-subtle text-success border border-success-subtle py-0 px-2 fw-medium fs-11 d-none">
+                            <i class="bi bi-magic me-1"></i><span id="brandAutoName"></span>
+                        </span>
+                    </label>
+                    <select id="brand" name="brand" class="form-select">
+                        <option value="">Otomatis (deteksi dari SN)</option>
+                        @foreach($brandOptions as $b)
+                            <option value="{{ $b }}" @selected(!$isEditing && old('brand') === $b)>{{ $b }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="tanggal_masuk" class="lbl">Tanggal Penerimaan</label>
+                    <input type="date" id="tanggal_masuk" name="tanggal_masuk"
+                           value="{{ $isEditing ? now()->toDateString() : old('tanggal_masuk', now()->toDateString()) }}"
+                           class="form-control @if(!$isEditing) @error('tanggal_masuk') is-invalid @enderror @endif">
                 </div>
             </div>
-        </div>
+
+            @if(!$isEditing)
+                @foreach(['serial_number', 'tanggal_masuk', 'brand'] as $f)
+                    @error($f)<p class="field-error">{{ $message }}</p>@enderror
+                @endforeach
+            @endif
+
+            <button type="submit" class="btn btn-brand mt-3 px-4"><i class="bi bi-plus-lg me-1"></i> Tambah Unit</button>
+        </form>
     </div>
 
-    <!-- Spesifikasi Impor & Petunjuk Pengelolaan -->
-    <div class="col-lg-7">
-        <div class="card card-custom h-100">
-            <div class="card-header bg-white border-bottom p-3 d-flex justify-content-between align-items-center">
-                <h6 class="fw-bold mb-0 text-dark">Panduan Format & Ketentuan Impor</h6>
-                <a href="{{ route('ont-masuk.template') }}" class="btn btn-outline-theme btn-sm rounded-2 text-nowrap" style="font-size: 0.78rem;">
-                    <i class="bi bi-download me-1"></i> Unduh Template .xlsx
-                </a>
-            </div>
-            <div class="card-body p-3">
-                <p class="text-muted small mb-3" style="font-size: 0.8rem;">
+    {{-- ═══ Catatan import massal ═══ --}}
+    <div class="collapse-card" id="noteCard">
+        <button type="button" class="collapse-toggle" data-bs-toggle="collapse" data-bs-target="#noteBody" aria-expanded="false" aria-controls="noteBody">
+            <span class="d-flex align-items-center gap-3">
+                <i class="bi bi-clipboard2-check fs-5" style="color: var(--green);"></i>
+                <span>
+                    <span class="fw-semibold fs-13" style="color: var(--green-dark);">Catatan Input Masal Ribuan Unit ONT</span>
+                    <span class="ms-2 fs-12 note-hint" style="color: #22c55e;">— klik untuk lihat panduan</span>
+                </span>
+            </span>
+            <i class="bi bi-chevron-down chev"></i>
+        </button>
+        <div class="collapse" id="noteBody">
+            <div class="collapse-body">
+                <p class="fs-13 fw-semibold mt-3 mb-3" style="color: #166534;">
                     Untuk input masal ribuan unit ONT sekaligus, pastikan file spreadsheet Anda mengikuti struktur baku berikut agar tidak terjadi penolakan baris data:
                 </p>
-
-                <div class="table-responsive mb-3 border rounded-2">
-                    <table class="table table-sm table-custom mb-0" style="font-size: 0.78rem;">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Nama Header</th>
-                                <th>Tipe Data</th>
-                                <th>Sifat</th>
-                                <th>Contoh Nilai</th>
-                            </tr>
-                        </thead>
+                <div class="table-responsive mb-3">
+                    <table class="tbl-green">
+                        <thead><tr><th>Nama Header</th><th>Tipe Data</th><th>Sifat</th><th>Contoh Nilai</th></tr></thead>
                         <tbody>
-                            <tr>
-                                <td class="font-monospace fw-semibold">serial_number</td>
-                                <td>Teks</td>
-                                <td><span class="badge badge-theme-red px-1.5 py-0.5 rounded-1">Wajib Unik</span></td>
-                                <td class="font-monospace text-muted">ZTEGC3FA7280</td>
-                            </tr>
-                            <tr>
-                                <td class="font-monospace fw-semibold">brand</td>
-                                <td>Teks</td>
-                                <td><span class="badge badge-soft-secondary px-1.5 py-0.5 rounded-1">Opsional</span></td>
-                                <td class="text-muted">ZTE / Huawei / Fiberhome</td>
-                            </tr>
-                            <tr>
-                                <td class="font-monospace fw-semibold">tanggal_masuk</td>
-                                <td>Tanggal</td>
-                                <td><span class="badge badge-theme-red px-1.5 py-0.5 rounded-1">Wajib</span></td>
-                                <td class="font-monospace text-muted">2026-09-14 (YYYY-MM-DD)</td>
-                            </tr>
+                            <tr><td>serial_number</td><td>Teks</td><td>Wajib Unik</td><td>ZTEGC3FA7280</td></tr>
+                            <tr><td>brand</td><td>Teks</td><td>Opsional</td><td>ZTE / Huawei / Fiberhome</td></tr>
+                            <tr><td>tanggal_masuk</td><td>Tanggal</td><td>Wajib</td><td>2026-09-14 (YYYY-MM-DD)</td></tr>
                         </tbody>
                     </table>
                 </div>
-
-                <div class="p-2.5 rounded-2 border text-muted" style="background-color: #fafbfc; font-size: 0.76rem; line-height: 1.4;">
-                    <strong class="text-dark d-block mb-1">Catatan Validasi:</strong>
+                <div class="callout-green">
+                    <i class="bi bi-exclamation-triangle me-1"></i>
                     Baris dengan Serial Number yang sudah pernah dicatat di sistem akan dilewati secara otomatis untuk menjaga integritas data tanpa menghentikan proses baris lainnya.
                 </div>
             </div>
         </div>
     </div>
+
+    {{-- ═══ Tabel ═══ --}}
+    <form id="filterForm" method="GET" action="{{ route('ont-masuk.index') }}"></form>
+
+    <div class="panel" id="tabelPanel">
+        <div class="panel-head">
+            <h2 class="panel-title">Daftar ONT Masuk</h2>
+            <span class="fs-12 text-muted-2">{{ number_format($items->total(), 0, ',', '.') }} unit</span>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table tbl">
+                <thead>
+                    <tr>
+                        <th>No</th><th>Serial Number (SN)</th><th>Merek</th><th>Tgl Masuk</th><th>Waktu Catat</th><th>Aksi</th>
+                    </tr>
+                    <tr class="filter-row">
+                        <td></td>
+                        <td>
+                            <input type="text" name="search" value="{{ $search }}" form="filterForm" data-autosubmit
+                                   class="form-control form-control-xs" placeholder="Cari SN..." style="min-width: 150px;" autocomplete="off">
+                        </td>
+                        <td>
+                            <select name="brand" form="filterForm" data-autosubmit class="form-select form-select-xs">
+                                <option value="">Semua</option>
+                                @foreach($brandOptions as $b)
+                                    <option value="{{ $b }}" @selected($brand === $b)>{{ $b }}</option>
+                                @endforeach
+                            </select>
+                        </td>
+                        <td><input type="date" name="tanggal" value="{{ $tanggal }}" form="filterForm" data-autosubmit class="form-control form-control-xs"></td>
+                        <td></td>
+                        <td>@if($hasFilter)<a href="{{ route('ont-masuk.index') }}" class="link-reset">Reset</a>@endif</td>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($items as $row)
+                        <tr>
+                            <td class="cell-no">{{ $items->firstItem() + $loop->index }}</td>
+                            <td class="cell-mono">{{ $row->serial_number }}</td>
+                            <td>
+                                @if($row->brand)<span class="pill pill-sm pill-blue">{{ $row->brand }}</span>@else<span class="cell-no">—</span>@endif
+                            </td>
+                            <td class="cell-small">{{ $row->tanggal_masuk?->format('d-m-Y') ?? '—' }}</td>
+                            <td class="cell-no">{{ $row->created_at?->format('d-m-Y H:i') }}</td>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <button type="button" class="btn btn-act btn-act-amber js-edit"
+                                            data-id="{{ $row->id }}"
+                                            data-sn="{{ $row->serial_number }}"
+                                            data-brand="{{ $row->brand }}"
+                                            data-tgl="{{ $row->tanggal_masuk?->toDateString() }}">Edit</button>
+                                    <form method="POST" action="{{ route('ont-masuk.destroy', $row) }}" class="m-0"
+                                          data-confirm="Hapus unit {{ $row->serial_number }}? Data ONT Keluar & Reporting WO yang terkait SN ini juga ikut terhapus.">
+                                        @csrf @method('DELETE')
+                                        <button type="submit" class="btn btn-act btn-act-red">Hapus</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="6" class="empty">{{ $hasFilter ? 'Tidak ada data yang sesuai filter' : 'Belum ada data ONT masuk' }}</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+
+        @if($items->hasPages())
+            <div class="panel-foot">
+                <span>Menampilkan {{ $items->firstItem() }}–{{ $items->lastItem() }} dari {{ $items->total() }} unit</span>
+                {{ $items->links() }}
+            </div>
+        @endif
+    </div>
 </div>
 
-<!-- Table Section: List ONT Masuk (Search & Pagination) -->
-<div class="card card-custom" id="tabel-rekap">
-    <div class="card-header bg-white border-bottom p-3">
-        <div class="row g-2 align-items-center">
-            <div class="col-xl-4 col-lg-3 col-md-12">
-                <h6 class="fw-bold mb-0 text-dark">Daftar ONT Masuk</h6>
+{{-- ═══ Modal Edit ═══ --}}
+<div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 384px;">
+        <form method="POST" id="editForm" class="modal-content" action="#">
+            @csrf @method('PUT')
+            <input type="hidden" name="_edit_id" id="editId">
+            <div class="modal-header">
+                <h2 class="modal-title">Edit Data ONT</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
             </div>
-            <div class="col-xl-8 col-lg-9 col-md-12">
-                <div class="d-flex flex-wrap gap-2 justify-content-md-end align-items-center">
-                    <!-- Quick Brand Filter Pills (Satu klik langsung filter tanpa tombol filter) -->
-                    <div class="btn-group btn-group-sm brand-pills-group" role="group" aria-label="Filter Merek">
-                        <button type="button" class="btn btn-brand-pill {{ empty($brand) ? 'active' : '' }}" data-brand="">Semua</button>
-                        <button type="button" class="btn btn-brand-pill {{ ($brand ?? '') == 'ZTE' ? 'active' : '' }}" data-brand="ZTE">ZTE</button>
-                        <button type="button" class="btn btn-brand-pill {{ ($brand ?? '') == 'Huawei' ? 'active' : '' }}" data-brand="Huawei">Huawei</button>
-                        <button type="button" class="btn btn-brand-pill {{ ($brand ?? '') == 'Fiberhome' ? 'active' : '' }}" data-brand="Fiberhome">Fiberhome</button>
-                        <button type="button" class="btn btn-brand-pill {{ ($brand ?? '') == 'Nokia' ? 'active' : '' }}" data-brand="Nokia">Nokia</button>
-                    </div>
-
-                    <!-- Dropdown Brand Filter (Pilihan alternatif dropdown) -->
-                    <select id="filterBrandSelect" class="form-select form-select-sm d-none d-sm-block" style="max-width: 125px;">
-                        <option value="" {{ empty($brand) ? 'selected' : '' }}>Semua Merek</option>
-                        <option value="ZTE" {{ ($brand ?? '') == 'ZTE' ? 'selected' : '' }}>ZTE</option>
-                        <option value="Huawei" {{ ($brand ?? '') == 'Huawei' ? 'selected' : '' }}>Huawei</option>
-                        <option value="Fiberhome" {{ ($brand ?? '') == 'Fiberhome' ? 'selected' : '' }}>Fiberhome</option>
-                        <option value="Nokia" {{ ($brand ?? '') == 'Nokia' ? 'selected' : '' }}>Nokia</option>
+            <div class="modal-body d-flex flex-column gap-3">
+                <div>
+                    <label class="lbl" for="editSn">Serial Number (SN)</label>
+                    <input type="text" name="serial_number" id="editSn" class="form-control font-mono" required autocomplete="off">
+                </div>
+                <div>
+                    <label class="lbl" for="editBrand">Merek / Vendor</label>
+                    <select name="brand" id="editBrand" class="form-select">
+                        <option value="">Otomatis (deteksi dari SN)</option>
+                        @foreach($brandOptions as $b)<option value="{{ $b }}">{{ $b }}</option>@endforeach
                     </select>
+                </div>
+                <div>
+                    <label class="lbl" for="editTgl">Tanggal Masuk</label>
+                    <input type="date" name="tanggal_masuk" id="editTgl" class="form-control" required>
+                </div>
+                <div class="field-error" id="editError" style="display:none;"></div>
+            </div>
+            <div class="modal-footer justify-content-end">
+                <button type="button" class="btn btn-gray" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-amber">Simpan Perubahan</button>
+            </div>
+        </form>
+    </div>
+</div>
 
-                    <!-- Form Search SN -->
-                    <form action="{{ route('ont-masuk.index') }}" method="GET" id="formFilter" class="d-flex gap-1 align-items-center m-0">
-                        <input type="hidden" name="brand" id="filterBrandInput" value="{{ $brand ?? '' }}">
-                        <div class="input-group input-group-sm" style="max-width: 200px;">
-                            <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-search"></i></span>
-                            <input type="text" name="search" id="filterSearchInput" class="form-control border-start-0" placeholder="Cari SN atau merek..." value="{{ $search ?? '' }}">
-                        </div>
-                        @if($search || $brand)
-                            <button type="button" id="btnResetFilter" class="btn btn-light btn-sm text-muted px-2 border" title="Reset Filter">
-                                <i class="bi bi-x-circle"></i>
-                            </button>
-                        @endif
-                    </form>
+{{-- ═══ Modal Import ═══ --}}
+<div class="modal fade" id="importModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 448px;">
+        <form method="POST" action="{{ route('ont-masuk.import') }}" enctype="multipart/form-data" class="modal-content" id="importForm">
+            @csrf
+            <div class="modal-header">
+                <h2 class="modal-title">Import Spreadsheet</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+            </div>
+            <div class="modal-body d-flex flex-column gap-3">
+                <label class="dropzone m-0">
+                    <i class="bi bi-folder2-open"></i>
+                    <span class="dropzone-name" id="importName">Klik untuk pilih file</span>
+                    <span class="fs-12 text-muted-2 mt-1">.xlsx / .xls / .csv (maks. 10 MB)</span>
+                    <input type="file" name="file" id="importFile" accept=".xlsx,.xls,.csv" required>
+                </label>
+                @error('file')<div class="field-error m-0">{{ $message }}</div>@enderror
+
+                <div class="tpl-box">
+                    <div>
+                        <div class="fs-12 fw-semibold text-muted-2 mb-1">Unduh Template</div>
+                        <div class="fs-12 text-muted-2 font-mono">serial_number | brand | tanggal_masuk</div>
+                    </div>
+                    <a href="{{ route('ont-masuk.template') }}" class="btn btn-soft-green btn-sm text-nowrap"><i class="bi bi-download me-1"></i> Unduh</a>
                 </div>
             </div>
-        </div>
-    </div>
-
-    <div class="table-responsive">
-        <table class="table table-custom table-hover align-middle">
-            <thead>
-                <tr>
-                    <th class="text-center" style="width: 50px;">No</th>
-                    <th>Serial Number (SN)</th>
-                    <th>Merek</th>
-                    <th>Tgl Masuk</th>
-                    <th>Waktu Catat</th>
-                    <th class="text-center" style="width: 100px;">Aksi</th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse($items as $item)
-                <tr>
-                    <td class="text-center text-muted small">{{ $items->firstItem() + $loop->index }}</td>
-                    <td>
-                        <div class="d-flex align-items-center gap-1.5">
-                            <span class="font-monospace fw-medium text-dark">{{ $item->serial_number }}</span>
-                            <button class="btn btn-sm btn-link text-muted p-0 ms-1" title="Salin SN"
-                                onclick="navigator.clipboard.writeText('{{ $item->serial_number }}'); this.innerHTML='<i class=\'bi bi-clipboard-check\' style=\'font-size:0.75rem;\'></i>'">
-                                <i class="bi bi-clipboard" style="font-size: 0.75rem;"></i>
-                            </button>
-                        </div>
-                    </td>
-                    <td>
-                        @if($item->brand)
-                            <span class="badge badge-soft-secondary px-2 py-0.5 rounded-1 small">{{ $item->brand }}</span>
-                        @else
-                            <span class="text-muted small">—</span>
-                        @endif
-                    </td>
-                    <td>
-                        <span class="text-dark small">{{ $item->tanggal_masuk->format('d M Y') }}</span>
-                    </td>
-                    <td>
-                        <span class="text-muted small">{{ $item->created_at->format('d M Y, H:i') }}</span>
-                    </td>
-                    <td class="text-center">
-                        <div class="d-flex gap-1 justify-content-center">
-                            <button type="button"
-                                class="btn btn-sm btn-outline-theme py-1 px-2 rounded-2"
-                                style="font-size: 0.78rem;"
-                                onclick="openEditMasukModal(
-                                    '{{ $item->id }}',
-                                    '{{ $item->serial_number }}',
-                                    '{{ $item->brand ?? '' }}',
-                                    '{{ $item->tanggal_masuk->format('Y-m-d') }}'
-                                )">
-                                <i class="bi bi-pencil"></i>
-                            </button>
-                            <form action="{{ route('ont-masuk.destroy', $item->id) }}" method="POST"
-                                onsubmit="return confirm('Hapus unit ONT {{ $item->serial_number }}?')">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="btn btn-sm btn-link text-danger p-0" title="Hapus">
-                                    <i class="bi bi-x-lg"></i>
-                                </button>
-                            </form>
-                        </div>
-                    </td>
-                </tr>
-                @empty
-                <tr>
-                    <td colspan="6" class="text-center py-5 text-muted small">
-                        <i class="bi bi-inbox fs-4 d-block mb-2 text-muted opacity-50"></i>
-                        Belum ada data ONT Masuk yang terdata.
-                    </td>
-                </tr>
-                @endforelse
-            </tbody>
-        </table>
-    </div>
-
-    <!-- Pagination Footer -->
-    <div class="card-footer bg-white border-top p-2.5 d-flex flex-column flex-sm-row justify-content-between align-items-center gap-2">
-        <span class="text-muted small" style="font-size: 0.78rem;">
-            @if($items->total() > 0)
-                Menampilkan {{ $items->firstItem() }}–{{ $items->lastItem() }} dari {{ $items->total() }} data
-            @else
-                Tidak ada data ditemukan
-            @endif
-        </span>
-        <nav aria-label="Page navigation">
-            {{ $items->links('pagination::bootstrap-5') }}
-        </nav>
+            <div class="modal-footer justify-content-end">
+                <button type="button" class="btn btn-gray" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-brand" id="importBtn">Proses Import</button>
+            </div>
+        </form>
     </div>
 </div>
 @endsection
 
-{{-- Modal Edit ONT Masuk --}}
-<div class="modal fade" id="modalEditMasuk" tabindex="-1" aria-labelledby="modalEditMasukLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-sm rounded-3">
-            <div class="modal-header bg-white border-bottom px-3 py-2">
-                <h6 class="modal-title fw-bold text-dark" id="modalEditMasukLabel">
-                    <i class="bi bi-pencil-square me-1"></i> Edit Data ONT Masuk
-                </h6>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form id="formEditMasuk" method="POST" action="">
-                @csrf
-                @method('PUT')
-                <div class="modal-body p-3">
-                    <div class="mb-3">
-                        <label for="edit_serial_number" class="form-label">Serial Number (SN) <span class="text-muted small">*</span></label>
-                        <input type="text"
-                            class="form-control font-monospace"
-                            id="edit_serial_number" name="serial_number"
-                            placeholder="Contoh: ZTEGC3FA7280"
-                            required autocomplete="off">
-                    </div>
-                    <div class="mb-3">
-                        <label for="edit_brand" class="form-label">Merek / Vendor</label>
-                        <select class="form-select" id="edit_brand" name="brand">
-                            <option value="">-- Pilih Merek (Opsional) --</option>
-                            <option value="ZTE">ZTE</option>
-                            <option value="Huawei">Huawei</option>
-                            <option value="Fiberhome">Fiberhome</option>
-                            <option value="Nokia">Nokia</option>
-                            <option value="Lainnya">Lainnya</option>
-                        </select>
-                    </div>
-                    <div class="mb-2">
-                        <label for="edit_tanggal_masuk" class="form-label">Tanggal Penerimaan <span class="text-muted small">*</span></label>
-                        <input type="date"
-                            class="form-control"
-                            id="edit_tanggal_masuk" name="tanggal_masuk"
-                            required>
-                    </div>
-                </div>
-                <div class="modal-footer bg-white border-top px-3 py-2">
-                    <button type="button" class="btn btn-outline-secondary btn-sm rounded-2" data-bs-dismiss="modal">Batal</button>
-                    <button type="submit" class="btn btn-custom-primary btn-sm rounded-2" id="btnSimpanEditMasuk">
-                        <i class="bi bi-check2 me-1"></i> Simpan Perubahan
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-@push('styles')
-<style>
-    .btn-brand-pill {
-        font-size: 0.78rem;
-        font-weight: 500;
-        padding: 0.28rem 0.68rem;
-        border-color: #dee2e6;
-        color: #475569;
-        background-color: #fff;
-        transition: all 0.15s ease-in-out;
-    }
-    .btn-brand-pill:hover {
-        background-color: #f1f5f9;
-        border-color: #cbd5e1;
-        color: #0f172a;
-    }
-    .btn-brand-pill.active {
-        background-color: var(--theme-red, #b91c1c) !important;
-        border-color: var(--theme-red, #b91c1c) !important;
-        color: #ffffff !important;
-        font-weight: 600;
-        box-shadow: 0 1px 3px rgba(185, 28, 28, 0.25);
-    }
-    .table-loading-fade {
-        opacity: 0.45;
-        pointer-events: none;
-        transition: opacity 0.15s ease;
-    }
-</style>
-@endpush
-
 @push('scripts')
 <script>
-    function updateFileName(input) {
-        if (input.files && input.files[0]) {
-            document.getElementById('fileNameDisplay').textContent = input.files[0].name;
-            document.getElementById('selectedFileName').classList.remove('d-none');
-        }
+(function () {
+    var UPDATE_URL = {{ Js::from(route('ont-masuk.update', ['ontMasuk' => '__ID__'])) }};
+    var editModalEl = document.getElementById('editModal');
+    var editModal = new bootstrap.Modal(editModalEl);
+    var f = {
+        form: document.getElementById('editForm'),
+        id: document.getElementById('editId'),
+        sn: document.getElementById('editSn'),
+        brand: document.getElementById('editBrand'),
+        tgl: document.getElementById('editTgl'),
+        err: document.getElementById('editError')
+    };
+
+    // Auto-detect merek/vendor berdasarkan awalan Serial Number standar:
+    // - ZTE -> ZTE
+    // - FHTT -> Fiberhome
+    // - ALCL -> Nokia
+    // - 48575443 atau HWTC -> Huawei
+    function detectBrandFromSN(sn) {
+        if (!sn) return '';
+        var s = sn.trim().toUpperCase();
+        if (s.startsWith('ZTE')) return 'ZTE';
+        if (s.startsWith('FHTT')) return 'Fiberhome';
+        if (s.startsWith('ALCL')) return 'Nokia';
+        if (s.startsWith('48575443') || s.startsWith('HWTC')) return 'Huawei';
+        return '';
     }
 
-    // Auto-dismiss flash alerts setelah 4 detik
-    setTimeout(() => {
-        document.querySelectorAll('.alert').forEach(el => {
-            const bsAlert = bootstrap.Alert.getOrCreateInstance(el);
-            bsAlert.close();
-        });
-    }, 4000);
+    var snInput = document.getElementById('serial_number');
+    var brandSelect = document.getElementById('brand');
+    var badge = document.getElementById('brandAutoBadge');
+    var badgeName = document.getElementById('brandAutoName');
 
-    // ==============================================================
-    // AJAX FILTERING REKAPAN (LANGSUNG FILTER & HALAMAN TIDAK NAIK)
-    // ==============================================================
-    function initTabelRekapFilter() {
-        const tableCard = document.getElementById('tabel-rekap');
-        if (!tableCard) return;
-
-        // Klik Pill Merek (ZTE, Huawei, dll) -> langsung filter tanpa tombol
-        const pills = tableCard.querySelectorAll('.btn-brand-pill');
-        pills.forEach(pill => {
-            pill.addEventListener('click', function (e) {
-                e.preventDefault();
-                const brand = this.getAttribute('data-brand') || '';
-                const search = document.getElementById('filterSearchInput')?.value || '';
-                applyRekapFilter({ brand: brand, search: search });
-            });
-        });
-
-        // Pilihan Dropdown Merek -> langsung filter saat dipilih
-        const brandSelect = document.getElementById('filterBrandSelect');
-        if (brandSelect) {
-            brandSelect.addEventListener('change', function () {
-                const brand = this.value;
-                const search = document.getElementById('filterSearchInput')?.value || '';
-                applyRekapFilter({ brand: brand, search: search });
-            });
-        }
-
-        // Form Submit Cari SN (tekan Enter pada input search)
-        const formFilter = document.getElementById('formFilter');
-        if (formFilter) {
-            formFilter.addEventListener('submit', function (e) {
-                e.preventDefault();
-                const brand = document.getElementById('filterBrandInput')?.value || 
-                              document.getElementById('filterBrandSelect')?.value || '';
-                const search = document.getElementById('filterSearchInput')?.value || '';
-                applyRekapFilter({ brand: brand, search: search });
-            });
-        }
-
-        // Tombol Reset Filter
-        const resetBtn = document.getElementById('btnResetFilter');
-        if (resetBtn) {
-            resetBtn.addEventListener('click', function (e) {
-                e.preventDefault();
-                applyRekapFilter({ brand: '', search: '' });
-            });
-        }
-
-        // Intercept link Pagination agar halaman tidak lompat ke atas saat ganti page
-        const paginationLinks = tableCard.querySelectorAll('.pagination a');
-        paginationLinks.forEach(link => {
-            link.addEventListener('click', function (e) {
-                e.preventDefault();
-                if (this.href) {
-                    applyRekapFilterFromUrl(this.href);
-                }
-            });
-        });
-    }
-
-    function applyRekapFilter(params) {
-        const baseUrl = "{{ route('ont-masuk.index') }}";
-        const url = new URL(baseUrl, window.location.origin);
-
-        if (params.brand) {
-            url.searchParams.set('brand', params.brand);
-        }
-        if (params.search) {
-            url.searchParams.set('search', params.search);
-        }
-
-        applyRekapFilterFromUrl(url.toString());
-    }
-
-    function applyRekapFilterFromUrl(fullUrl) {
-        const tableCard = document.getElementById('tabel-rekap');
-        if (!tableCard) {
-            window.location.href = fullUrl;
-            return;
-        }
-
-        // Simpan posisi scroll sebelum request agar halaman TIDAK LOMPAT KE ATAS
-        const currentScrollY = window.scrollY;
-
-        const tableContent = tableCard.querySelector('.table-responsive') || tableCard;
-        tableContent.classList.add('table-loading-fade');
-
-        fetch(fullUrl, {
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
+    function applyBrandDetection() {
+        if (!snInput || !brandSelect) return;
+        var detected = detectBrandFromSN(snInput.value);
+        if (detected) {
+            brandSelect.value = detected;
+            brandSelect.dataset.autoSelected = '1';
+            if (badge && badgeName) {
+                badgeName.textContent = detected;
+                badge.classList.remove('d-none');
             }
-        })
-        .then(response => {
-            if (!response.ok) throw new Error('Network error');
-            return response.text();
-        })
-        .then(html => {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, 'text/html');
-            const newCard = doc.getElementById('tabel-rekap');
-
-            if (newCard) {
-                tableCard.innerHTML = newCard.innerHTML;
-                window.history.pushState(null, '', fullUrl);
-
-                // Pertahankan posisi scroll user tanpa berpindah
-                window.scrollTo({ top: currentScrollY, behavior: 'instant' });
-
-                // Re-bind event listener pada elemen baru
-                initTabelRekapFilter();
-            } else {
-                window.location.href = fullUrl;
+        } else {
+            if (brandSelect.dataset.autoSelected === '1') {
+                brandSelect.value = '';
+                delete brandSelect.dataset.autoSelected;
             }
-        })
-        .catch(err => {
-            console.error('Filter error:', err);
-            window.location.href = fullUrl;
-        })
-        .finally(() => {
-            tableContent.classList.remove('table-loading-fade');
-        });
-    }
-
-    // Tangani browser back/forward button
-    window.addEventListener('popstate', function () {
-        applyRekapFilterFromUrl(window.location.href);
-    });
-
-    // Inisialisasi saat pertama kali load
-    document.addEventListener('DOMContentLoaded', function () {
-        initTabelRekapFilter();
-
-        // Jika halaman dibuka langsung via URL berparameter filter / pagination, scroll ke tabel
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.has('brand') || urlParams.has('search') || urlParams.has('page') || window.location.hash === '#tabel-rekap') {
-            const tableElement = document.getElementById('tabel-rekap');
-            if (tableElement) {
-                tableElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            if (badge) {
+                badge.classList.add('d-none');
             }
         }
-    });
+    }
 
-    // ==========================================
-    // LOGIKA SCANNER BARCODE & AUTO-DETECT BRAND
-    // ==========================================
-    document.addEventListener('DOMContentLoaded', function () {
-        const snInput = document.getElementById('serial_number');
-        const brandSelect = document.getElementById('brand');
-        const brandAutoBadge = document.getElementById('brandAutoBadge');
-        const brandAutoName = document.getElementById('brandAutoName');
-        const formManual = document.getElementById('formManualInput');
-        const manualTab = document.getElementById('manual-tab');
-
-        // Fungsi identifikasi merek dari prefix Serial Number
-        function detectBrandFromSN(sn) {
-            if (!sn) return null;
-            const s = sn.trim().toUpperCase();
-            if (s.startsWith('ZTE')) return 'ZTE';
-            if (s.startsWith('FHTT')) return 'Fiberhome';
-            if (s.startsWith('ALCL')) return 'Nokia';
-            if (s.startsWith('48575443') || s.startsWith('HWTC')) return 'Huawei';
-            return null;
+    if (snInput && brandSelect) {
+        snInput.addEventListener('input', applyBrandDetection);
+        snInput.addEventListener('change', applyBrandDetection);
+        snInput.addEventListener('paste', function () {
+            setTimeout(applyBrandDetection, 30);
+        });
+        brandSelect.addEventListener('change', function () {
+            delete brandSelect.dataset.autoSelected;
+            if (badge) badge.classList.add('d-none');
+        });
+        if (snInput.value) {
+            applyBrandDetection();
         }
+    }
 
-        function applyBrandDetection() {
-            if (!snInput || !brandSelect) return;
-            const detected = detectBrandFromSN(snInput.value);
-            if (detected) {
-                brandSelect.value = detected;
-                if (brandAutoName && brandAutoBadge) {
-                    brandAutoName.textContent = detected;
-                    brandAutoBadge.classList.remove('d-none');
-                }
-            } else {
-                if (brandAutoBadge) {
-                    brandAutoBadge.classList.add('d-none');
-                }
+    var formTambah = document.getElementById('formTambah');
+    if (formTambah && snInput) {
+        formTambah.addEventListener('submit', function () {
+            snInput.value = snInput.value.trim().toUpperCase();
+            if (!brandSelect.value) {
+                var detected = detectBrandFromSN(snInput.value);
+                if (detected) brandSelect.value = detected;
             }
-        }
-
-        if (snInput) {
-            // Deteksi real-time saat scanner mengetik teks barcode atau user paste/input
-            snInput.addEventListener('input', applyBrandDetection);
-            snInput.addEventListener('change', applyBrandDetection);
-
-            // Jika user scan dan menekan Enter, pastikan deteksi dieksekusi sebelum submit
-            snInput.addEventListener('keydown', function (e) {
-                if (e.key === 'Enter') {
-                    applyBrandDetection();
-                    // Biarkan submit form default berjalan otomatis
-                }
-            });
-
-            // Fokus otomatis ke input Serial Number agar langsung siap scan tanpa klik
-            snInput.focus();
-        }
-
-        if (manualTab && snInput) {
-            manualTab.addEventListener('shown.bs.tab', function () {
-                snInput.focus();
-            });
-        }
-
-        if (formManual) {
-            formManual.addEventListener('submit', function () {
-                // Jalankan deteksi sekali lagi sebelum payload terkirim
-                applyBrandDetection();
-
-                if (snInput) {
-                    snInput.value = snInput.value.trim().toUpperCase();
-                }
-
-                // Tampilkan efek loading pada tombol simpan
-                const submitBtn = formManual.querySelector('button[type="submit"]');
-                if (submitBtn) {
-                    submitBtn.disabled = true;
-                    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Menyimpan Unit...';
-                }
-            });
-        }
-    });
-
-    // ==========================================
-    // FUNGSI MODAL EDIT ONT MASUK
-    // ==========================================
-    function openEditMasukModal(id, sn, brand, tanggalMasuk) {
-        const baseUrl = "{{ url('ont-masuk') }}";
-        document.getElementById('formEditMasuk').action = baseUrl + '/' + id;
-        document.getElementById('edit_serial_number').value = sn;
-        document.getElementById('edit_brand').value = brand || '';
-        document.getElementById('edit_tanggal_masuk').value = tanggalMasuk;
-
-        const modal = new bootstrap.Modal(document.getElementById('modalEditMasuk'));
-        modal.show();
-
-        // Fokus ke field SN setelah modal terbuka
-        document.getElementById('modalEditMasuk').addEventListener('shown.bs.modal', function handler() {
-            document.getElementById('edit_serial_number').focus();
-            this.removeEventListener('shown.bs.modal', handler);
         });
     }
 
-    // Efek loading tombol saat form edit disubmit
-    document.addEventListener('DOMContentLoaded', function () {
-        const formEdit = document.getElementById('formEditMasuk');
-        if (formEdit) {
-            formEdit.addEventListener('submit', function () {
-                const btn = document.getElementById('btnSimpanEditMasuk');
-                if (btn) {
-                    btn.disabled = true;
-                    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Menyimpan...';
-                }
-            });
+    // Modal Edit auto-detect
+    var editSn = document.getElementById('editSn');
+    if (editSn) {
+        function applyEditDetection() {
+            var detected = detectBrandFromSN(editSn.value);
+            if (detected) setBrand(detected);
         }
+        editSn.addEventListener('input', applyEditDetection);
+        editSn.addEventListener('paste', function () {
+            setTimeout(applyEditDetection, 30);
+        });
+    }
+
+    function setBrand(val) {
+        val = val || '';
+        var found = Array.prototype.some.call(f.brand.options, function (o) { return o.value === val; });
+        if (!found) {
+            var o = document.createElement('option');
+            o.value = val; o.textContent = val;
+            f.brand.appendChild(o);
+        }
+        f.brand.value = val;
+    }
+
+    function openEdit(d, error) {
+        f.form.action = UPDATE_URL.replace('__ID__', d.id);
+        f.id.value = d.id;
+        f.sn.value = d.sn || '';
+        f.tgl.value = d.tgl || '';
+        var brandVal = d.brand || detectBrandFromSN(d.sn);
+        setBrand(brandVal);
+        f.err.style.display = error ? '' : 'none';
+        f.err.textContent = error || '';
+        editModal.show();
+    }
+
+    // Delegasi klik tombol Edit agar tetap aktif meski tabel diperbarui secara dinamis (AJAX)
+    document.addEventListener('click', function (e) {
+        var b = e.target.closest('.js-edit');
+        if (!b) return;
+        openEdit({ id: b.dataset.id, sn: b.dataset.sn, brand: b.dataset.brand, tgl: b.dataset.tgl }, '');
     });
+
+    @if($isEditing)
+        openEdit(
+            {{ Js::from(['id' => old('_edit_id'), 'sn' => old('serial_number'), 'brand' => old('brand'), 'tgl' => old('tanggal_masuk')]) }},
+            {{ Js::from($errors->first()) }}
+        );
+    @endif
+
+    // Import
+    var file = document.getElementById('importFile');
+    var name = document.getElementById('importName');
+    file.addEventListener('change', function () { name.textContent = file.files[0] ? file.files[0].name : 'Klik untuk pilih file'; });
+    document.getElementById('importForm').addEventListener('submit', function () {
+        var btn = document.getElementById('importBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spin"></span>Memproses...';
+    });
+    @if($errors->has('file'))
+        new bootstrap.Modal(document.getElementById('importModal')).show();
+    @endif
+
+    // Kartu catatan: sinkronkan gaya saat dibuka/ditutup
+    var noteBody = document.getElementById('noteBody'), noteCard = document.getElementById('noteCard');
+    noteBody.addEventListener('show.bs.collapse', function () { noteCard.classList.add('is-open'); noteCard.querySelector('.note-hint').style.display = 'none'; });
+    noteBody.addEventListener('hide.bs.collapse', function () { noteCard.classList.remove('is-open'); noteCard.querySelector('.note-hint').style.display = ''; });
+})();
 </script>
 @endpush

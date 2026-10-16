@@ -149,8 +149,8 @@ body.sidebar-open .app-sidebar { width: var(--sidebar-w); border-right-width: 1p
 }
 
 /* ── Halaman ──────────────────────────────────────────────────────────── */
-.page { padding: 1.5rem; max-width: 1300px; display: flex; flex-direction: column; gap: 1.5rem; }
-.page-narrow { max-width: 1200px; }
+.page { padding: 1.5rem; width: 100%; display: flex; flex-direction: column; gap: 1.5rem; }
+.page-narrow { /* no max-width — content fills sidebar-aware space */ }
 .page-title { font-size: 1.25rem; font-weight: 700; color: #1f2937; margin: 0; }
 .page-sub { font-size: .875rem; color: var(--muted); margin: .125rem 0 0; }
 

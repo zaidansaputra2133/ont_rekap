@@ -109,7 +109,10 @@
                             <td class="cell-mono text-nowrap" style="color: #2563eb;">{{ $row->no_order }}</td>
                             <td class="cell-small font-mono text-nowrap">{{ $row->cid ?: '—' }}</td>
                             <td class="cell-mono">{{ $row->serial_number }}</td>
-                            <td class="fw-medium" style="color: var(--ink-2);">{{ $row->nama_teknisi }}</td>
+                            <td class="fw-medium" style="color: var(--ink-2);">
+                                {{ $row->nama_teknisi ?: '—' }}
+                                @if($row->nik_teknisi)<div class="fs-11 text-muted-2 font-mono">{{ $row->nik_teknisi }}</div>@endif
+                            </td>
                             <td><span class="pill {{ $statusPill($row->status_wo) }}">{{ $row->status_wo ?: '—' }}</span></td>
                             <td class="cell-small text-nowrap">{{ $row->tanggal_sa?->format('d-m-Y') ?? '—' }}</td>
                             <td class="cell-small" style="color: #4b5563;">

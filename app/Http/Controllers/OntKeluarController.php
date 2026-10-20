@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\OntKeluar;
 use App\Models\OntMasuk;
+use App\Models\ReportingWo;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -47,12 +48,27 @@ class OntKeluarController extends Controller
         // Ambil daftar brand unik yang tersedia di stok gudang
         $availableBrands = $availableOnts->pluck('brand')->filter()->unique()->values()->all();
 
-        // Ambil daftar nama teknisi yang sudah ada untuk saran pengetikan cepat
-        $daftarTeknisi = OntKeluar::select('nama_teknisi')
-            ->distinct()
+        // Selaraskan nama teknisi jika ada kesamaan SN sebelum membangun daftar nama resmi
+        ReportingWo::syncTeknisiNamesWithOntKeluar();
+
+        // Ambil daftar nama teknisi dari Reporting WO (master) dan ONT Keluar untuk pilihan dropdown resmi
+        $daftarTeknisi = ReportingWo::select('nama_teknisi')
             ->whereNotNull('nama_teknisi')
-            ->orderBy('nama_teknisi')
-            ->pluck('nama_teknisi');
+            ->where('nama_teknisi', '!=', '')
+            ->distinct()
+            ->pluck('nama_teknisi')
+            ->merge(
+                OntKeluar::select('nama_teknisi')
+                    ->whereNotNull('nama_teknisi')
+                    ->where('nama_teknisi', '!=', '')
+                    ->distinct()
+                    ->pluck('nama_teknisi')
+            )
+            ->map(fn ($n) => trim($n))
+            ->filter()
+            ->unique(fn ($n) => strtolower($n))
+            ->sort(SORT_NATURAL | SORT_FLAG_CASE)
+            ->values();
 
         return view('ont-keluar.index', compact('items', 'totalKeluar', 'search', 'status', 'teknisi', 'tanggal', 'availableOnts', 'availableBrands', 'daftarTeknisi'));
     }
@@ -116,7 +132,16 @@ class OntKeluarController extends Controller
         }
 
         DB::transaction(function () use ($snList, $request) {
-            $namaTeknisi = trim($request->nama_teknisi);
+            $namaTeknisi = trim(preg_replace('/\s+/', ' ', (string) $request->nama_teknisi));
+
+            // Jika ada nama resmi yang cocok secara case-insensitive, gunakan format resmi tersebut
+            $existingOfficial = ReportingWo::whereRaw('LOWER(TRIM(nama_teknisi)) = ?', [strtolower($namaTeknisi)])->value('nama_teknisi')
+                ?? OntKeluar::whereRaw('LOWER(TRIM(nama_teknisi)) = ?', [strtolower($namaTeknisi)])->value('nama_teknisi');
+
+            if ($existingOfficial) {
+                $namaTeknisi = $existingOfficial;
+            }
+
             $tanggalKeluar = $request->tanggal_keluar;
 
             foreach ($snList as $sn) {

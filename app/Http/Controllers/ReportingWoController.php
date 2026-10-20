@@ -86,6 +86,7 @@ class ReportingWoController extends Controller
 
         $imported = $import->importedCount();
         $updated = $import->updatedCount();
+        $synced = $import->syncedTeknisiCount();
         $unregistered = $import->unregisteredSnCount();
         $skipped = $import->skippedCount();
 
@@ -95,6 +96,9 @@ class ReportingWoController extends Controller
         }
         if ($updated > 0) {
             $parts[] = "{$updated} laporan diperbarui";
+        }
+        if ($synced > 0) {
+            $parts[] = "{$synced} nama teknisi diselaraskan via Serial Number";
         }
         if ($unregistered > 0) {
             $unregisteredSns = implode(', ', array_slice($import->unregisteredSns(), 0, 3));
@@ -107,7 +111,7 @@ class ReportingWoController extends Controller
 
         $message = ! empty($parts) ? 'Proses impor selesai: '.implode('. ', $parts).'.' : 'Tidak ada data yang berhasil diimpor.';
 
-        $flashType = ($imported > 0 || $updated > 0) ? 'success' : ($unregistered > 0 ? 'error' : 'info');
+        $flashType = ($imported > 0 || $updated > 0 || $synced > 0) ? 'success' : ($unregistered > 0 ? 'error' : 'info');
 
         return redirect()->route('reporting-wo.index')
             ->with($flashType, $message);
@@ -234,6 +238,13 @@ class ReportingWoController extends Controller
             'no_order', 'cid', 'serial_number', 'nama_teknisi', 'nik_teknisi',
             'status_wo', 'tanggal_sa', 'vendor', 'sektor', 'cek_match',
         ]));
+
+        // Penyelarasan Otomatis via Serial Number (Opsi 1):
+        // Jika nama teknisi di WO diperbarui, selaraskan juga nama teknisi di ont_keluars
+        if (! empty($reportingWo->serial_number) && ! empty($reportingWo->nama_teknisi)) {
+            OntKeluar::where('serial_number', $reportingWo->serial_number)
+                ->update(['nama_teknisi' => $reportingWo->nama_teknisi]);
+        }
 
         return redirect()->route('reporting-wo.index')
             ->with('success', "Laporan WO {$reportingWo->no_order} berhasil diperbarui.");

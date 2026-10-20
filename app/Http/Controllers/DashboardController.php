@@ -32,21 +32,31 @@ class DashboardController extends Controller
         $totalNotInstalled = max(0, $totalKeluar - $totalInstalled);
 
         // --- 2. Tabel Rekapitulasi per Teknisi (PRD 4.D #2) ---
-        // Kumpulkan daftar personil teknisi yang ada di ont_keluars dan reporting_wos
-        $teknisiKeluar = OntKeluar::select('nama_teknisi')->whereNotNull('nama_teknisi')->distinct()->pluck('nama_teknisi');
-        $teknisiWo = ReportingWo::select('nama_teknisi')->whereNotNull('nama_teknisi')->distinct()->pluck('nama_teknisi');
-        $semuaTeknisi = $teknisiKeluar->merge($teknisiWo)->filter()->unique()->sort()->values();
+        // Penyelarasan Otomatis via Serial Number (Opsi 1):
+        // Memastikan jika ada kecocokan SN antara ont_keluars dan reporting_wos, nama teknisi langsung diselaraskan
+        // sehingga tidak terjadi duplikasi teknisi (doubling) di tabel dashboard.
+        ReportingWo::syncTeknisiNamesWithOntKeluar();
+
+        // Kumpulkan daftar personil teknisi yang ada di ont_keluars dan reporting_wos (deduplikasi case-insensitive)
+        $teknisiKeluar = OntKeluar::select('nama_teknisi')->whereNotNull('nama_teknisi')->where('nama_teknisi', '!=', '')->distinct()->pluck('nama_teknisi');
+        $teknisiWo = ReportingWo::select('nama_teknisi')->whereNotNull('nama_teknisi')->where('nama_teknisi', '!=', '')->distinct()->pluck('nama_teknisi');
+        $semuaTeknisi = $teknisiKeluar->merge($teknisiWo)
+            ->map(fn ($n) => trim($n))
+            ->filter()
+            ->unique(fn ($n) => strtolower($n))
+            ->sort(SORT_NATURAL | SORT_FLAG_CASE)
+            ->values();
 
         $rekapTeknisi = [];
         foreach ($semuaTeknisi as $nama) {
-            $totalDiambil = OntKeluar::where('nama_teknisi', $nama)->count();
-            $rusak = OntKeluar::where('nama_teknisi', $nama)->where('keterangan', 'Rusak')->count();
-            $snsDiambil = OntKeluar::where('nama_teknisi', $nama)->pluck('serial_number')->toArray();
+            $totalDiambil = OntKeluar::whereRaw('LOWER(TRIM(nama_teknisi)) = ?', [strtolower($nama)])->count();
+            $rusak = OntKeluar::whereRaw('LOWER(TRIM(nama_teknisi)) = ?', [strtolower($nama)])->where('keterangan', 'Rusak')->count();
+            $snsDiambil = OntKeluar::whereRaw('LOWER(TRIM(nama_teknisi)) = ?', [strtolower($nama)])->pluck('serial_number')->toArray();
 
             // Hitung unit INSTALLED milik teknisi ini:
             // Dicocokkan dari SN yang pernah diserahkan ke teknisi ini ATAU dari nama teknisi di laporan WO
             $installed = ReportingWo::where(function ($q) use ($nama, $snsDiambil) {
-                $q->where('nama_teknisi', $nama);
+                $q->whereRaw('LOWER(TRIM(nama_teknisi)) = ?', [strtolower($nama)]);
                 if (! empty($snsDiambil)) {
                     $q->orWhereIn('serial_number', $snsDiambil);
                 }

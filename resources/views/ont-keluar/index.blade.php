@@ -24,13 +24,42 @@
                 @csrf
                 <div class="row g-3 mb-4">
                     <div class="col-sm-6">
-                        <label for="nama_teknisi" class="lbl">Nama Teknisi <span class="req">*</span></label>
-                        <input type="text" id="nama_teknisi" name="nama_teknisi" value="{{ old('nama_teknisi') }}" list="daftarTeknisi"
-                               placeholder="Ketik nama teknisi..." autocomplete="off"
-                               class="form-control @error('nama_teknisi') is-invalid @enderror">
-                        <datalist id="daftarTeknisi">
-                            @foreach($daftarTeknisi as $nama)<option value="{{ $nama }}">@endforeach
-                        </datalist>
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <label for="nama_teknisi" class="lbl mb-0">Nama Teknisi <span class="req">*</span></label>
+                            <button type="button" class="btn btn-link p-0 fs-12 text-decoration-none fw-semibold" id="btnToggleNewTeknisi" style="color: var(--primary);">
+                                <i class="bi bi-person-plus-fill me-1"></i>+ Teknisi Baru
+                            </button>
+                        </div>
+
+                        {{-- Mode 1: Pilih dari Dropdown Nama Resmi (Default) --}}
+                        <div id="wrapperSelectTeknisi">
+                            <select id="nama_teknisi" name="nama_teknisi" class="form-select @error('nama_teknisi') is-invalid @enderror" required>
+                                <option value="">-- Pilih Nama Teknisi Resmi --</option>
+                                @foreach($daftarTeknisi as $nama)
+                                    <option value="{{ $nama }}" {{ old('nama_teknisi') === $nama ? 'selected' : '' }}>{{ $nama }}</option>
+                                @endforeach
+                            </select>
+                            <span class="fs-11 text-muted-2 mt-1 d-block">
+                                <i class="bi bi-shield-check text-success me-1"></i>Pilih nama resmi untuk mencegah duplikasi (doubling).
+                            </span>
+                        </div>
+
+                        {{-- Mode 2: Input Tambah Teknisi Baru --}}
+                        <div id="wrapperInputNewTeknisi" style="display: none;">
+                            <div class="input-group">
+                                <input type="text" id="input_new_teknisi" class="form-control" placeholder="Nama lengkap resmi teknisi baru..." autocomplete="off">
+                                <button type="button" class="btn btn-brand btn-sm" id="btnConfirmNewTeknisi" title="Gunakan Nama Ini">
+                                    <i class="bi bi-check2"></i> Gunakan
+                                </button>
+                                <button type="button" class="btn btn-light border btn-sm" id="btnCancelNewTeknisi" title="Kembali">
+                                    Batal
+                                </button>
+                            </div>
+                            <span class="fs-11 text-muted-2 mt-1 d-block text-warning-dark">
+                                <i class="bi bi-info-circle me-1"></i>Ketik nama lengkap resmi (sesuai KTP / SIM-WO) agar konsisten.
+                            </span>
+                        </div>
+
                         @error('nama_teknisi')<p class="field-error">{{ $message }}</p>@enderror
                     </div>
                     <div class="col-sm-6">
@@ -367,10 +396,82 @@
     els.prev.addEventListener('click', function () { page = Math.max(1, page - 1); renderList(); });
     els.next.addEventListener('click', function () { page += 1; renderList(); });
     els.reset.addEventListener('click', function () { selected = []; render(); });
+    // Toggle Tambah Teknisi Baru
+    var btnToggleNew = document.getElementById('btnToggleNewTeknisi');
+    var wrapSelect = document.getElementById('wrapperSelectTeknisi');
+    var wrapInput = document.getElementById('wrapperInputNewTeknisi');
+    var inputNew = document.getElementById('input_new_teknisi');
+    var btnConfirmNew = document.getElementById('btnConfirmNewTeknisi');
+    var btnCancelNew = document.getElementById('btnCancelNewTeknisi');
+    var selectTeknisi = document.getElementById('nama_teknisi');
+
+    if (btnToggleNew && wrapSelect && wrapInput) {
+        btnToggleNew.addEventListener('click', function () {
+            wrapSelect.style.display = 'none';
+            wrapInput.style.display = '';
+            btnToggleNew.style.display = 'none';
+            inputNew.value = '';
+            inputNew.focus();
+        });
+
+        btnCancelNew.addEventListener('click', function () {
+            wrapInput.style.display = 'none';
+            wrapSelect.style.display = '';
+            btnToggleNew.style.display = '';
+            inputNew.value = '';
+            selectTeknisi.focus();
+        });
+
+        function applyNewTeknisi() {
+            var raw = inputNew.value.trim();
+            if (!raw) {
+                inputNew.focus();
+                return;
+            }
+
+            // Normalisasi spasi ganda
+            var cleanName = raw.replace(/\s+/g, ' ');
+
+            // Cek apakah sudah ada di opsi select (case-insensitive)
+            var foundOption = null;
+            for (var i = 0; i < selectTeknisi.options.length; i++) {
+                if (selectTeknisi.options[i].value.toLowerCase() === cleanName.toLowerCase()) {
+                    foundOption = selectTeknisi.options[i];
+                    break;
+                }
+            }
+
+            if (foundOption) {
+                selectTeknisi.value = foundOption.value;
+            } else {
+                var opt = document.createElement('option');
+                opt.value = cleanName;
+                opt.textContent = cleanName + ' (Baru)';
+                selectTeknisi.appendChild(opt);
+                selectTeknisi.value = cleanName;
+            }
+
+            wrapInput.style.display = 'none';
+            wrapSelect.style.display = '';
+            btnToggleNew.style.display = '';
+            inputNew.value = '';
+            selectTeknisi.focus();
+        }
+
+        btnConfirmNew.addEventListener('click', applyNewTeknisi);
+        inputNew.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                applyNewTeknisi();
+            } else if (e.key === 'Escape') {
+                btnCancelNew.click();
+            }
+        });
+    }
 
     els.form.addEventListener('submit', function (e) {
         var msg = '';
-        if (!document.getElementById('nama_teknisi').value.trim()) msg = 'Nama Teknisi wajib diisi.';
+        if (!document.getElementById('nama_teknisi').value.trim()) msg = 'Pilih atau tentukan Nama Teknisi terlebih dahulu.';
         else if (selected.length === 0) msg = 'Pilih minimal satu Serial Number.';
         if (msg) {
             e.preventDefault();

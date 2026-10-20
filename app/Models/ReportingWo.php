@@ -141,4 +141,39 @@ class ReportingWo extends Model
 
         return $query;
     }
+
+    /**
+     * Penyelarasan Otomatis via Serial Number (Opsi 1):
+     * Menyelaraskan nama teknisi di ont_keluars dengan nama resmi di reporting_wos
+     * berdasarkan kesamaan serial_number agar tidak terjadi duplikasi (doubling) nama teknisi.
+     */
+    public static function syncTeknisiNamesWithOntKeluar(): int
+    {
+        $matches = OntKeluar::join('reporting_wos', 'ont_keluars.serial_number', '=', 'reporting_wos.serial_number')
+            ->whereNotNull('reporting_wos.nama_teknisi')
+            ->where('reporting_wos.nama_teknisi', '!=', '')
+            ->whereNotNull('ont_keluars.nama_teknisi')
+            ->where('ont_keluars.nama_teknisi', '!=', '')
+            ->whereRaw('TRIM(LOWER(ont_keluars.nama_teknisi)) != TRIM(LOWER(reporting_wos.nama_teknisi))')
+            ->select(
+                'ont_keluars.id as ont_keluar_id',
+                'ont_keluars.nama_teknisi as nama_keluar',
+                'reporting_wos.nama_teknisi as nama_wo'
+            )
+            ->get();
+
+        $synced = 0;
+        foreach ($matches as $match) {
+            $namaLama = $match->nama_keluar;
+            $namaBaru = trim($match->nama_wo);
+
+            OntKeluar::where('id', $match->ont_keluar_id)->update(['nama_teknisi' => $namaBaru]);
+            if (! empty($namaLama)) {
+                OntKeluar::where('nama_teknisi', $namaLama)->update(['nama_teknisi' => $namaBaru]);
+            }
+            $synced++;
+        }
+
+        return $synced;
+    }
 }

@@ -24,6 +24,8 @@ class ReportingWoImport implements SkipsOnError, ToModel, WithHeadingRow
 
     private int $skippedCount = 0;
 
+    private int $syncedTeknisiCount = 0;
+
     private array $unregisteredSns = [];
 
     /**
@@ -57,6 +59,26 @@ class ReportingWoImport implements SkipsOnError, ToModel, WithHeadingRow
             return null;
         }
 
+        // Opsi 1: Penyelarasan Otomatis Teknisi via Serial Number (SN Match)
+        // Jika SN ini pernah dicatat diserahkan di ont_keluars (misal teknisi diinput "zidan"),
+        // dan di file master Reporting WO nama resminya adalah "zaidan saputra",
+        // sistem otomatis menyelaraskan nama di ont_keluars agar tidak terjadi duplikasi (doubling) teknisi.
+        if (! empty($namaTeknisi)) {
+            $ontKeluar = OntKeluar::where('serial_number', $sn)->first();
+            if ($ontKeluar && ! empty($ontKeluar->nama_teknisi)) {
+                if (strcasecmp(trim($ontKeluar->nama_teknisi), $namaTeknisi) !== 0) {
+                    $namaLama = $ontKeluar->nama_teknisi;
+                    $ontKeluar->update(['nama_teknisi' => $namaTeknisi]);
+
+                    if (! empty($namaLama)) {
+                        OntKeluar::where('nama_teknisi', $namaLama)->update(['nama_teknisi' => $namaTeknisi]);
+                    }
+
+                    $this->syncedTeknisiCount++;
+                }
+            }
+        }
+
         // Ekstraksi status_wo
         $statusWo = trim($row['status_wo'] ?? $row['status'] ?? 'Work Order Selesai');
 
@@ -81,20 +103,9 @@ class ReportingWoImport implements SkipsOnError, ToModel, WithHeadingRow
             }
         }
 
-        // PRD 4.C (Auto-Match): Cek kesesuaian dengan ont_keluars
-        $cekMatch = null;
-        if (! empty($row['cek_match'])) {
-            $cekMatch = trim($row['cek_match']);
-        } else {
-            $ontKeluar = OntKeluar::where('serial_number', $sn)->first();
-            if ($ontKeluar && strcasecmp(trim($ontKeluar->nama_teknisi), $namaTeknisi) === 0) {
-                $cekMatch = 'SESUAI';
-            } elseif ($ontKeluar) {
-                $cekMatch = 'Beda';
-            } else {
-                $cekMatch = 'SESUAI';
-            }
-        }
+        // cek_match otomatis SESUAI karena SN sudah lolos validasi BR-01 (ada di ont_masuks)
+        // Kolom cek_match dari Excel bisa override jika ada (misal admin set manual saat import)
+        $cekMatch = ! empty($row['cek_match']) ? trim($row['cek_match']) : 'SESUAI';
 
         // Cek apakah no_order sudah pernah ada
         $existing = ReportingWo::where('no_order', $noOrder)->first();
@@ -154,5 +165,10 @@ class ReportingWoImport implements SkipsOnError, ToModel, WithHeadingRow
     public function unregisteredSns(): array
     {
         return $this->unregisteredSns;
+    }
+
+    public function syncedTeknisiCount(): int
+    {
+        return $this->syncedTeknisiCount;
     }
 }

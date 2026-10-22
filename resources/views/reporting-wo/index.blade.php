@@ -175,10 +175,22 @@
                 </label>
                 @error('file')<div class="field-error m-0">{{ $message }}</div>@enderror
 
-                <div class="info-card info-blue d-block fs-12" style="line-height:1.6;">
-                    Kolom yang dibutuhkan: <span class="font-mono fw-semibold">no_order, serial_number, nama_teknisi, status_wo, tanggal_sa</span>.
-                    Kolom opsional: <span class="font-mono">cid, nik_teknisi, vendor, sektor, cek_match</span>.
-                    <div class="mt-1">No. Order yang sudah ada akan diperbarui. SN yang belum terdaftar di ONT Masuk dilewati.</div>
+                <div class="info-card info-blue d-block fs-12" style="line-height:1.7;">
+                    <div class="d-flex flex-column gap-1">
+                        <div>
+                            <span class="fw-semibold">Kolom wajib:</span>
+                            <span class="font-mono fw-semibold ms-1">no_order, serial_number, nama_teknisi, status_wo, tanggal_sa</span>
+                        </div>
+                        <div>
+                            <span class="fw-semibold">Kolom opsional:</span>
+                            <span class="font-mono ms-1">cid, nik_teknisi, vendor, sektor, cek_match</span>
+                        </div>
+                        <hr class="my-1 opacity-25">
+                        <div class="d-flex flex-column gap-1 text-muted-2">
+                            <div><i class="bi bi-arrow-repeat me-1"></i>No. Order yang sudah ada akan <strong>diperbarui</strong>.</div>
+                            <div><i class="bi bi-skip-forward me-1"></i>SN yang belum terdaftar di ONT Masuk akan <strong>dilewati</strong>.</div>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer justify-content-end">

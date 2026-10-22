@@ -92,4 +92,12 @@ class OntMasuk extends Model
 
         return null;
     }
+
+    /**
+     * Cek apakah Serial Number memiliki prefix resmi (ZTE, FHTT, ALCL, HWTC, 48575443).
+     */
+    public static function hasValidPrefix(?string $serialNumber): bool
+    {
+        return self::detectBrand($serialNumber) !== null;
+    }
 }

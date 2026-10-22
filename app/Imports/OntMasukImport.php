@@ -26,8 +26,8 @@ class OntMasukImport implements SkipsOnError, ToModel, WithHeadingRow
     {
         $sn = strtoupper(trim($row['serial_number'] ?? ''));
 
-        // Lewati jika SN kosong atau sudah ada
-        if (! $sn || OntMasuk::where('serial_number', $sn)->exists()) {
+        // Lewati jika SN kosong, prefix tidak valid, atau sudah ada di sistem
+        if (! $sn || ! OntMasuk::hasValidPrefix($sn) || OntMasuk::where('serial_number', $sn)->exists()) {
             $this->skippedCount++;
 
             return null;

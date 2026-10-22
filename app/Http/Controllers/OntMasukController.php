@@ -42,11 +42,18 @@ class OntMasukController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'serial_number' => ['required', 'string', 'max:100', 'unique:ont_masuks,serial_number'],
+            'serial_number' => [
+                'required',
+                'string',
+                'max:100',
+                'regex:/^(ZTE|FHTT|ALCL|HWTC|48575443)/i',
+                'unique:ont_masuks,serial_number',
+            ],
             'tanggal_masuk' => ['required', 'date'],
             'brand' => ['nullable', 'string', 'max:50'],
         ], [
             'serial_number.required' => 'Serial Number wajib diisi.',
+            'serial_number.regex' => 'Format Serial Number tidak valid. Wajib diawali prefix resmi: ZTE, FHTT, ALCL, HWTC, atau 48575443.',
             'serial_number.unique' => 'Serial Number ini sudah terdaftar di sistem.',
             'tanggal_masuk.required' => 'Tanggal penerimaan wajib diisi.',
         ]);
@@ -85,7 +92,7 @@ class OntMasukController extends Controller
 
         $message = "Import selesai. {$imported} unit berhasil ditambahkan.";
         if ($skipped > 0) {
-            $message .= " {$skipped} baris dilewati (SN duplikat).";
+            $message .= " {$skipped} baris dilewati (duplikat atau prefix tidak valid).";
         }
 
         return redirect()->route('ont-masuk.index')->with('success', $message);
@@ -148,11 +155,18 @@ class OntMasukController extends Controller
     public function update(Request $request, OntMasuk $ontMasuk)
     {
         $request->validate([
-            'serial_number' => ['required', 'string', 'max:100', 'unique:ont_masuks,serial_number,'.$ontMasuk->id],
+            'serial_number' => [
+                'required',
+                'string',
+                'max:100',
+                'regex:/^(ZTE|FHTT|ALCL|HWTC|48575443)/i',
+                'unique:ont_masuks,serial_number,'.$ontMasuk->id,
+            ],
             'tanggal_masuk' => ['required', 'date'],
             'brand' => ['nullable', 'string', 'max:50'],
         ], [
             'serial_number.required' => 'Serial Number wajib diisi.',
+            'serial_number.regex' => 'Format Serial Number tidak valid. Wajib diawali prefix resmi: ZTE, FHTT, ALCL, HWTC, atau 48575443.',
             'serial_number.unique' => 'Serial Number ini sudah terdaftar di sistem.',
             'tanggal_masuk.required' => 'Tanggal penerimaan wajib diisi.',
         ]);

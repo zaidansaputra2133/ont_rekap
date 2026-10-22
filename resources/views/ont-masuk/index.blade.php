@@ -33,6 +33,7 @@
                            autofocus autocomplete="off" placeholder="Scan barcode atau ketik manual..."
                            class="form-control @if(!$isEditing) @error('serial_number') is-invalid @enderror @endif">
                     <p class="hint"><i class="bi bi-check2"></i> Mendukung input manual &amp; scan barcode</p>
+                    <p class="field-error" id="snClientError" style="display:none;"></p>
                 </div>
                 <div class="col-md-4">
                     <label for="brand" class="lbl d-flex align-items-center justify-content-between">
@@ -95,7 +96,7 @@
                 </div>
                 <div class="callout-green">
                     <i class="bi bi-exclamation-triangle me-1"></i>
-                    Baris dengan Serial Number yang sudah pernah dicatat di sistem akan dilewati secara otomatis untuk menjaga integritas data tanpa menghentikan proses baris lainnya.
+                    Baris dengan Serial Number yang sudah pernah dicatat atau tidak memiliki prefix resmi (ZTE, FHTT, ALCL, HWTC, 48575443) akan dilewati secara otomatis untuk menjaga integritas data tanpa menghentikan proses baris lainnya.
                 </div>
             </div>
         </div>
@@ -282,10 +283,12 @@
     var brandSelect = document.getElementById('brand');
     var badge = document.getElementById('brandAutoBadge');
     var badgeName = document.getElementById('brandAutoName');
+    var snClientError = document.getElementById('snClientError');
 
     function applyBrandDetection() {
         if (!snInput || !brandSelect) return;
-        var detected = detectBrandFromSN(snInput.value);
+        var val = snInput.value.trim().toUpperCase();
+        var detected = detectBrandFromSN(val);
         if (detected) {
             brandSelect.value = detected;
             brandSelect.dataset.autoSelected = '1';
@@ -293,6 +296,8 @@
                 badgeName.textContent = detected;
                 badge.classList.remove('d-none');
             }
+            snInput.classList.remove('is-invalid');
+            if (snClientError) snClientError.style.display = 'none';
         } else {
             if (brandSelect.dataset.autoSelected === '1') {
                 brandSelect.value = '';
@@ -300,6 +305,17 @@
             }
             if (badge) {
                 badge.classList.add('d-none');
+            }
+            // Tampilkan peringatan jika user sudah mengetik minimal 3 karakter tapi prefix tidak sesuai
+            if (val.length >= 3) {
+                snInput.classList.add('is-invalid');
+                if (snClientError) {
+                    snClientError.textContent = 'Prefix tidak valid. Wajib diawali ZTE, FHTT, ALCL, HWTC, atau 48575443.';
+                    snClientError.style.display = 'block';
+                }
+            } else {
+                snInput.classList.remove('is-invalid');
+                if (snClientError) snClientError.style.display = 'none';
             }
         }
     }
@@ -321,25 +337,59 @@
 
     var formTambah = document.getElementById('formTambah');
     if (formTambah && snInput) {
-        formTambah.addEventListener('submit', function () {
-            snInput.value = snInput.value.trim().toUpperCase();
+        formTambah.addEventListener('submit', function (e) {
+            var val = snInput.value.trim().toUpperCase();
+            snInput.value = val;
+            if (!val) return;
+            var detected = detectBrandFromSN(val);
+            if (!detected) {
+                e.preventDefault();
+                snInput.classList.add('is-invalid');
+                if (snClientError) {
+                    snClientError.textContent = 'Format Serial Number tidak valid. Wajib diawali prefix resmi: ZTE, FHTT, ALCL, HWTC, atau 48575443.';
+                    snClientError.style.display = 'block';
+                }
+                snInput.focus();
+                return false;
+            }
             if (!brandSelect.value) {
-                var detected = detectBrandFromSN(snInput.value);
-                if (detected) brandSelect.value = detected;
+                brandSelect.value = detected;
             }
         });
     }
 
-    // Modal Edit auto-detect
+    // Modal Edit auto-detect & validation
     var editSn = document.getElementById('editSn');
     if (editSn) {
         function applyEditDetection() {
-            var detected = detectBrandFromSN(editSn.value);
-            if (detected) setBrand(detected);
+            var val = editSn.value.trim().toUpperCase();
+            var detected = detectBrandFromSN(val);
+            if (detected) {
+                setBrand(detected);
+                if (f.err) f.err.style.display = 'none';
+            }
         }
         editSn.addEventListener('input', applyEditDetection);
         editSn.addEventListener('paste', function () {
             setTimeout(applyEditDetection, 30);
+        });
+    }
+
+    if (f.form && f.sn) {
+        f.form.addEventListener('submit', function (e) {
+            var val = f.sn.value.trim().toUpperCase();
+            f.sn.value = val;
+            var detected = detectBrandFromSN(val);
+            if (!detected) {
+                e.preventDefault();
+                f.err.textContent = 'Format Serial Number tidak valid. Wajib diawali prefix resmi: ZTE, FHTT, ALCL, HWTC, atau 48575443.';
+                f.err.style.display = 'block';
+                f.sn.focus();
+                return false;
+            }
+            if (!f.brand.value) {
+                f.brand.value = detected;
+            }
         });
     }
 
